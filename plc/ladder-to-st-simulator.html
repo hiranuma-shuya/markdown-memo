@@ -121,8 +121,8 @@ ul.pl li{margin:6px 0}
 .pb.on .stt{color:var(--on)}
 .lamp{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--panel2);border:1px solid var(--line);vertical-align:middle}
 .lamp.on{background:var(--on);border-color:var(--on);box-shadow:0 0 0 3px var(--on-soft)}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
-.seg label{font-size:13px;padding:5px 12px;cursor:pointer;background:var(--panel);color:var(--muted)}
+.seg{display:inline-flex;flex-wrap:wrap;max-width:100%;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg label{font-size:13px;padding:5px 12px;cursor:pointer;background:var(--panel);color:var(--muted);flex:1 1 auto;text-align:center}
 .seg label:has(input:checked){background:var(--ink);color:var(--bg)}
 .seg input{position:absolute;opacity:0;width:0;height:0}
 .readout{display:flex;gap:16px;align-items:center;font-size:14px;flex-wrap:wrap}
@@ -502,7 +502,7 @@ function scanRungs(rungs,mem){for(const r of rungs){mem[r.coil.d]=evalEls(r.els,
 
 function elsToST(els){
   return els.map(el=>{
-    if(el.t==='PAR')return '('+el.rows.map(row=>row.length>1?'('+elsToST(row)+')':elsToST(row)).join(' OR ')+')';
+    if(el.t==='PAR'){const or=el.rows.map(row=>row.length>1?'('+elsToST(row)+')':elsToST(row)).join(' OR ');return els.length>1?'('+or+')':or;}
     return (el.t==='NC'?'NOT ':'')+el.d;
   }).join(' AND ');
 }
@@ -592,6 +592,7 @@ class Trace{
     if('ResizeObserver' in window){this.ro=new ResizeObserver(()=>this.draw());this.ro.observe(canvas.parentElement);}
     else window.addEventListener('resize',()=>this.draw());
     if(matchMedia){const mq=matchMedia('(prefers-color-scheme: dark)');mq.addEventListener&&mq.addEventListener('change',()=>this.draw());}
+    if('MutationObserver' in window)new MutationObserver(()=>this.draw()).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
   }
   reset(){this.h=[];this.draw();}
   push(s){this.h.push(s);if(this.h.length>this.n)this.h.shift();this.draw();}
