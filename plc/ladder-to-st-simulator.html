@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ラダー→ST 変換のしくみ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#f1f3f6; --panel:#ffffff; --panel2:#e9edf2; --ink:#1a2230; --muted:#5e6a79;
+  --line:#d4dae2; --line2:#e6eaef; --wire:#7a8594; --grid:#e2e7ed; --code-bg:#f6f8fa;
+  --on:#1b64d1; --on-soft:#dbe7fa; --on-ink:#0f4aa3;
+  --warn:#c4771a; --warn-soft:#fbeedc;
+  --ok:#2f9e5a; --stop:#d0483a;
+  --sans:"IBM Plex Sans JP","Hiragino Sans","Noto Sans JP","Yu Gothic",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1319; --panel:#151c25; --panel2:#1c2531; --ink:#e3e8ef; --muted:#93a0b1;
+    --line:#2b3644; --line2:#222c38; --wire:#6b7887; --grid:#1b2431; --code-bg:#0f151d;
+    --on:#5ea3ff; --on-soft:#17304f; --on-ink:#bfd8ff;
+    --warn:#e2a04a; --warn-soft:#3a2a12;
+    --ok:#3fb56f; --stop:#e2604f;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1319; --panel:#151c25; --panel2:#1c2531; --ink:#e3e8ef; --muted:#93a0b1;
+  --line:#2b3644; --line2:#222c38; --wire:#6b7887; --grid:#1b2431; --code-bg:#0f151d;
+  --on:#5ea3ff; --on-soft:#17304f; --on-ink:#bfd8ff;
+  --warn:#e2a04a; --warn-soft:#3a2a12;
+  --ok:#3fb56f; --stop:#e2604f;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15.5px;line-height:1.8;padding-inline:20px;padding-block:0 80px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1100px;margin:0 auto}
+h1,h2,h3{text-wrap:balance;line-height:1.35;margin:0}
+h1{font-size:clamp(26px,4vw,34px);font-weight:700;letter-spacing:-.01em}
+h2{font-size:22px;font-weight:700;display:flex;gap:14px;align-items:baseline}
+h2 .n{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--on);letter-spacing:.06em}
+h3{font-size:16px;font-weight:600;margin-top:22px}
+p{margin:10px 0}
+.prose{max-width:40em}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+.hero{padding-block:44px 8px;border-bottom:1px solid var(--line)}
+.lede{font-size:17px;color:var(--muted);max-width:40em;margin-top:12px}
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.toc a{font-size:13px;color:var(--ink);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:4px 12px;background:var(--panel)}
+.toc a:hover{border-color:var(--on);color:var(--on-ink)}
+.toc a b{font-family:var(--mono);font-weight:500;color:var(--on);margin-right:6px}
+section.ch{padding-top:56px}
+.key{border-left:3px solid var(--on);background:var(--on-soft);padding:12px 16px;border-radius:0 8px 8px 0;margin:18px 0;max-width:46em}
+.key p{margin:4px 0}
+.key strong{color:var(--on-ink)}
+.note{border-left:3px solid var(--warn);background:var(--warn-soft);padding:12px 16px;border-radius:0 8px 8px 0;margin:18px 0;max-width:46em}
+code.inl{font-family:var(--mono);font-size:.92em;background:var(--code-bg);border:1px solid var(--line2);border-radius:4px;padding:0 5px}
+pre.blk{font-family:var(--mono);font-size:13px;line-height:1.6;background:var(--code-bg);border:1px solid var(--line);border-radius:6px;padding:12px 14px;overflow-x:auto;margin:12px 0;max-width:46em}
+pre.blk b{color:var(--on-ink);font-weight:600}
+pre.blk i{color:var(--muted)}
+ol.steps{padding-left:1.4em;margin:8px 0}
+ol.steps li{margin:4px 0}
+ul.pl{padding-left:1.3em;margin:8px 0}
+ul.pl li{margin:6px 0}
+
+/* bench */
+.bench{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-top:20px}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--line2);margin-bottom:14px}
+.bar .sp{flex:1}
+.scan{font-family:var(--mono);font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.scan b{color:var(--ink);font-weight:500}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
+.cols + .cols{margin-top:18px}
+.cols.w32{grid-template-columns:minmax(0,3fr) minmax(0,2fr)}
+@media (max-width:860px){.cols,.cols.w32{grid-template-columns:minmax(0,1fr)}}
+.pane-h{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:0 0 8px;display:flex;gap:8px;align-items:center}
+.pane-h .lamp{margin-left:auto}
+.ladder{background-color:var(--panel);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:16px 16px;border:1px solid var(--line);border-radius:6px;overflow-x:auto;padding:8px}
+.ladder svg{display:block;width:100%;min-width:440px;height:auto}
+.ladder.mini svg{min-width:300px}
+.ladder.click .hit{cursor:pointer}
+.ld .w{stroke:var(--wire);stroke-width:1.6;fill:none}
+.ld .w.on{stroke:var(--on);stroke-width:3}
+.ld .bar{stroke:var(--ink);stroke-width:1.8;fill:none}
+.ld .bar.on{stroke:var(--on);stroke-width:2.6}
+.ld .hl{fill:var(--on-soft)}
+.ld .hit{fill:transparent}
+.ld .rail{stroke:var(--ink);stroke-width:2.2}
+.ld .dev{font:500 11.5px var(--mono);fill:var(--ink)}
+.ld .cmt{font:10.5px var(--sans);fill:var(--muted)}
+.ld .note{font:11px var(--sans);fill:var(--muted)}
+.st{background:var(--code-bg);border:1px solid var(--line);border-radius:6px;padding:8px 0;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.65}
+.st .ln{display:flex;align-items:flex-start;gap:12px;padding:1px 12px}
+.st .ln.hl{background:var(--on-soft)}
+.st .ln.dim{opacity:.45}
+.st code{font-family:inherit;white-space:pre-wrap;overflow-wrap:anywhere}
+.st b{color:var(--on-ink);font-weight:600}
+.st i{color:var(--muted);font-style:normal}
+.val{margin-left:auto;flex:none;margin-top:3px;font-size:11px;line-height:1.5;padding:0 7px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:var(--panel);font-family:var(--mono)}
+.val.on{background:var(--on);color:#fff;border-color:var(--on)}
+.val.num{color:var(--ink);font-weight:600}
+.vars{list-style:none;padding:0;margin:8px 0 0;font-family:var(--mono);font-size:12.5px}
+.vars li{display:flex;gap:10px;align-items:center;padding:3px 0;border-bottom:1px solid var(--line2)}
+.vars li span:first-child{color:var(--muted);min-width:9em}
+.hint{font-size:13px;color:var(--muted);margin:8px 0 0}
+
+/* controls */
+.btn{font:500 13px var(--sans);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 12px;cursor:pointer;line-height:1.5}
+.btn:hover{border-color:var(--muted)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn.run.on{background:var(--on);color:#fff;border-color:var(--on)}
+.btn:focus-visible,.pb:focus-visible,.seg label:focus-within{outline:2px solid var(--on);outline-offset:2px}
+.pb{display:inline-flex;align-items:center;gap:8px;background:none;border:1px solid var(--line);border-radius:999px;padding:4px 12px 4px 6px;cursor:pointer;font-family:var(--sans);color:var(--ink)}
+.pb .cap{width:24px;height:24px;border-radius:50%;background:var(--ok);box-shadow:inset 0 -3px 0 rgba(0,0,0,.28);transition:box-shadow .1s}
+.pb.stop .cap{background:var(--stop)}
+.pb.on .cap{box-shadow:inset 0 3px 0 rgba(0,0,0,.35)}
+.pb .lbl{font-size:13px;font-weight:500}
+.pb .stt{font-family:var(--mono);font-size:11px;color:var(--muted);min-width:3.2em;text-align:left}
+.pb.on{border-color:var(--on)}
+.pb.on .stt{color:var(--on)}
+.lamp{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--panel2);border:1px solid var(--line);vertical-align:middle}
+.lamp.on{background:var(--on);border-color:var(--on);box-shadow:0 0 0 3px var(--on-soft)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg label{font-size:13px;padding:5px 12px;cursor:pointer;background:var(--panel);color:var(--muted)}
+.seg label:has(input:checked){background:var(--ink);color:var(--bg)}
+.seg input{position:absolute;opacity:0;width:0;height:0}
+.readout{display:flex;gap:16px;align-items:center;font-size:14px;flex-wrap:wrap}
+.readout .lampbox{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px}
+
+/* loop diagram */
+.loop{width:100%;max-width:560px;height:auto;display:block;color:var(--ink)}
+.loop text{font:13px var(--sans);fill:var(--ink)}
+.loop .cmt{font-size:11.5px;fill:var(--muted)}
+.loop line,.loop path{stroke:var(--ink);stroke-width:1.5;fill:none}
+.loop .phase rect{fill:var(--panel);stroke:var(--line);stroke-width:1.5}
+.loop .phase.active rect{fill:var(--on-soft);stroke:var(--on)}
+.loop .phase.active text{fill:var(--on-ink);font-weight:600}
+@media (prefers-reduced-motion:no-preference){.loop .phase rect{transition:fill .15s,stroke .15s}}
+
+/* legend grid */
+.legend{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px}
+@media (max-width:760px){.legend{grid-template-columns:minmax(0,1fr)}}
+.legend .card{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--panel)}
+.legend .card h4{margin:0 0 8px;font-size:14px;font-weight:600;display:flex;gap:10px;align-items:baseline}
+.legend .card h4 small{color:var(--muted);font-weight:400;font-size:12.5px}
+.legend .st{margin-top:8px}
+
+/* plant */
+.plant svg{width:100%;height:auto;max-width:600px;display:block}
+.plant .trk{stroke:var(--line);stroke-width:2}
+.plant .body{fill:var(--panel2);stroke:var(--muted);stroke-width:1.2}
+.plant .rod{stroke:var(--muted);stroke-width:6}
+.plant .piece{fill:var(--ink)}
+.plant .ls path{fill:var(--panel2);stroke:var(--muted)}
+.plant .ls.on path{fill:var(--on);stroke:var(--on)}
+.plant .ls.on .cmt{fill:var(--on-ink);font-weight:600}
+.plant .jaw rect{fill:var(--panel2);stroke:var(--muted)}
+.plant .jaw.on rect{fill:var(--on);stroke:var(--on)}
+.plant .jaw.on .cmt{fill:var(--on-ink);font-weight:600}
+.plant .sol text{font:12px var(--mono);fill:var(--muted)}
+.plant .sol.on text{fill:var(--on);font-weight:600}
+.plant .cmt{font:11px var(--sans);fill:var(--muted)}
+@media (prefers-reduced-motion:no-preference){.plant .rod,.plant .piece,.plant .jaw rect{transition:all .1s linear}}
+
+/* where-am-I cards */
+.where{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+.where .card{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--panel)}
+.where .card h4{margin:0 0 10px;font-size:13px;font-weight:600;color:var(--muted)}
+.bits{display:flex;gap:16px;font-family:var(--mono);font-size:12.5px;flex-wrap:wrap}
+.bits span{display:inline-flex;align-items:center;gap:6px}
+.reading{margin-top:10px;font-size:14px;min-height:3em}
+.big{font-family:var(--mono);font-size:28px;font-weight:600;line-height:1.2;font-variant-numeric:tabular-nums}
+.big small{font-size:14px;font-weight:500;color:var(--muted);margin-left:8px}
+
+/* trace */
+.trace{margin-top:18px}
+.trace canvas{display:block;width:100%}
+.legend-line{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:6px}
+.legend-line i{display:inline-block;width:14px;height:10px;vertical-align:-1px;margin-right:6px}
+.legend-line .a{background:var(--on)}
+.legend-line .b{border:1.5px dashed var(--ink);height:8px;width:12px}
+.legend-line .c{background:var(--warn);height:3px;vertical-align:2px}
+.msg{font-size:14px;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--panel)}
+.msg b{color:var(--on-ink)}
+
+/* summary table */
+.tblwrap{overflow-x:auto;margin-top:14px}
+table.tbl{width:100%;border-collapse:collapse;font-size:14px;min-width:620px}
+.tbl th,.tbl td{border-bottom:1px solid var(--line2);padding:9px 10px;text-align:left;vertical-align:top}
+.tbl th{font-weight:600;color:var(--muted);font-size:12.5px;letter-spacing:.04em;white-space:nowrap}
+.tbl td:first-child{color:var(--muted);white-space:nowrap}
+.final{margin-top:40px;border-top:1px solid var(--line);padding-top:24px;font-size:18px;font-weight:600;max-width:40em;line-height:1.7}
+.final small{display:block;font-size:13px;font-weight:400;color:var(--muted);margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <p class="eyebrow">PLC / IEC 61131-3</p>
+  <h1>ラダー→ST 変換のしくみ</h1>
+  <p class="lede">ラダーを知らないSEのための、触って分かる解説。左に「動いているラダー」、右に「同じ意味の ST」を並べます。ボタンを押して、1スキャンずつ進めてみてください。</p>
+  <nav class="toc" aria-label="目次">
+    <a href="#ch1"><b>1</b>PLCはループ</a>
+    <a href="#ch2"><b>2</b>ラダーの読み方</a>
+    <a href="#ch3"><b>3</b>自己保持</a>
+    <a href="#ch4"><b>4</b>工程の鎖 → step変数</a>
+    <a href="#ch5"><b>5</b>順番と1スキャン遅れ</a>
+    <a href="#ch6"><b>6</b>まとめ</a>
+  </nav>
+</header>
+
+<!-- ================= 1 ================= -->
+<section class="ch" id="ch1">
+  <h2><span class="n">1</span>PLC は「ぐるぐる回る while ループ」</h2>
+  <div class="prose">
+    <p>PLC は工場の機械を動かす小さなコンピュータです。中のプログラムは、SE の言葉にするとこれだけです。</p>
+<pre class="blk"><b>while</b> (true) {
+  入力を読む();            <i>// センサやボタンの ON/OFF をメモリにコピー</i>
+  プログラムを上から下まで実行();
+  出力を書く();            <i>// メモリの値をモータやランプに出す</i>
+}</pre>
+    <p>この 1 周を <strong>スキャン</strong> と呼びます。1 周は数ミリ秒。1 秒に何百回も回り続けます。</p>
+  </div>
+
+  <div class="bench">
+    <div class="bar">
+      <button class="pb" id="d1-sw" aria-pressed="false"><span class="cap"></span><span class="lbl">X0 スイッチ</span><span class="stt">OFF</span></button>
+      <button class="btn primary" id="d1-step">1スキャン進める</button>
+      <span class="sp"></span>
+      <span class="scan">SCAN <b id="d1-scan">0000</b></span>
+    </div>
+    <div class="cols w32">
+      <div>
+        <p class="pane-h">スキャンの流れ</p>
+        <svg class="loop" id="d1-loop" viewBox="0 0 560 122" role="img" aria-label="入力を読む、プログラムを上から下まで実行、出力を書く、を繰り返すループ">
+          <defs><marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" stroke="none"/></marker></defs>
+          <g class="phase" id="d1-p0"><rect x="10" y="26" width="140" height="48" rx="8"/><text x="80" y="55" text-anchor="middle">① 入力を読む</text></g>
+          <g class="phase" id="d1-p1"><rect x="200" y="26" width="170" height="48" rx="8"/><text x="285" y="49" text-anchor="middle">② プログラムを</text><text x="285" y="66" text-anchor="middle">上から下まで実行</text></g>
+          <g class="phase" id="d1-p2"><rect x="420" y="26" width="130" height="48" rx="8"/><text x="485" y="55" text-anchor="middle">③ 出力を書く</text></g>
+          <line x1="150" y1="50" x2="196" y2="50" marker-end="url(#arw)"/>
+          <line x1="370" y1="50" x2="416" y2="50" marker-end="url(#arw)"/>
+          <path d="M485 74 V100 H80 V78" marker-end="url(#arw)"/>
+          <text class="cmt" x="282" y="116" text-anchor="middle">1周 = 1スキャン（数ms）。電源が入っている間ずっと繰り返す</text>
+        </svg>
+        <div class="readout" style="margin-top:10px">
+          <span class="lampbox">入力メモリ X0 = <b id="d1-img">OFF</b></span>
+          <span class="lampbox"><span class="lamp" id="d1-lamp"></span> Y0 ランプ（実際の出力）</span>
+        </div>
+      </div>
+      <div>
+        <p class="pane-h">ラダー</p>
+        <div class="ladder" id="d1-ladder"></div>
+        <p class="pane-h" style="margin-top:12px">同じ意味の ST</p>
+        <div class="st" id="d1-st"></div>
+      </div>
+    </div>
+    <p class="hint">やってみる: スイッチを押して「1スキャン進める」。①で入力メモリにコピー → ②でラングを評価 → ③でランプに出る、の順に進みます。ランプが変わるのはスキャンの終わりです。</p>
+  </div>
+
+  <div class="key">
+    <p><strong>大事なこと。</strong>ラダーも ST も、この同じループの中で動きます。ST にしたからイベントドリブンになるわけではないし、軽くなるわけでもありません。言語が違うだけで、実行モデルは同じです。</p>
+  </div>
+</section>
+
+<!-- ================= 2 ================= -->
+<section class="ch" id="ch2">
+  <h2><span class="n">2</span>ラダーの読み方（SE 向け翻訳）</h2>
+  <div class="prose">
+    <p>ラダーは「電気回路図の見た目で書くプログラム言語」です。正式には LD（Ladder Diagram）。左右の縦線が電源のイメージで、横に 1 本ずつ <strong>ラング（段）</strong> を書きます。左から右に「電気が流れる」と考えて読みます。</p>
+    <p>部品は 2 種類しかありません。<strong>接点</strong>（変数を読む）と <strong>コイル</strong>（変数に代入する）。つなぎ方が AND / OR になります。下の接点はクリックで ON/OFF できます。</p>
+  </div>
+  <div class="legend" id="legend"></div>
+  <div class="key">
+    <p><strong>つまり 1 ラング = 1 つの <code class="inl">bool変数 := 式;</code> です。</strong>変数名は <code class="inl">X0</code>（入力）、<code class="inl">Y0</code>（出力）、<code class="inl">M100</code>（内部メモリ）、<code class="inl">D100</code>（数値）のように、種類 + 番号で書きます。三菱 PLC の流儀です。</p>
+  </div>
+</section>
+
+<!-- ================= 3 ================= -->
+<section class="ch" id="ch3">
+  <h2><span class="n">3</span>自己保持 = 「ボタンを離しても覚えている」回路</h2>
+  <div class="prose">
+    <p>ラダーで一番大事な基本パターンです。起動ボタンを押すと動き始め、ボタンを離しても動き続け、停止ボタンで止まる。どんな設備にもある動きを、この 1 ラングで作ります。</p>
+  </div>
+
+  <div class="bench">
+    <div class="bar">
+      <button class="pb" id="d3-x0" aria-pressed="false"><span class="cap"></span><span class="lbl">X0 起動</span><span class="stt">OFF</span></button>
+      <button class="pb stop" id="d3-x1" aria-pressed="false"><span class="cap"></span><span class="lbl">X1 停止</span><span class="stt">OFF</span></button>
+      <button class="btn primary" id="d3-step">1スキャン</button>
+      <button class="btn run" id="d3-run">▶ 自動</button>
+      <button class="btn" id="d3-reset">リセット</button>
+      <span class="sp"></span>
+      <span class="scan">SCAN <b id="d3-scan">0000</b></span>
+    </div>
+    <div class="cols">
+      <div>
+        <p class="pane-h">ラダー <span class="lamp" id="d3-lamp"></span></p>
+        <div class="ladder" id="d3-ladder"></div>
+      </div>
+      <div>
+        <p class="pane-h">そのまま ST に直訳（自動生成）</p>
+        <div class="st" id="d3-st"></div>
+        <ol class="steps" style="margin-top:14px;font-size:14px">
+          <li><b>X0 起動</b> を押して「1スキャン」→ M100 が ON になる</li>
+          <li><b>X0 起動</b> を離して「1スキャン」→ <b>まだ ON のまま</b>。これが自己保持</li>
+          <li><b>X1 停止</b> を押して「1スキャン」→ OFF になる</li>
+        </ol>
+      </div>
+    </div>
+    <div class="trace"><canvas id="d3-trace"></canvas></div>
+  </div>
+
+  <div class="key">
+    <p><strong>SE 的に言うと、自分の出力を自分の入力に戻している 1 ビットのメモリ</strong>（SR フリップフロップ）です。右辺の <code class="inl">M100</code> は「前のスキャンで代入した値」を読んでいるので、覚えていられます。</p>
+    <p>ST への直訳は 1 行。<strong>単発の自己保持なら、この 1 行のままで何も困りません。</strong>「ST らしく書き直す」必要が出るのは、次の章のように工程が連なるときです。</p>
+  </div>
+</section>
+
+<!-- ================= 4 ================= -->
+<section class="ch" id="ch4">
+  <h2><span class="n">4</span>工程の鎖 → 「今どこ？」を 1 つの変数にする</h2>
+  <div class="prose">
+    <p>機械の動きには順番があります。ラダーでは、自己保持リレーを鎖のようにつないで順番を作ります（工程歩進と呼ばれます）。例として、シリンダでワークを押し出す 3 工程の設備を動かしてみます。</p>
+    <div class="tblwrap" style="max-width:46em"><table class="tbl" style="min-width:0">
+      <thead><tr><th>工程</th><th>やること</th><th>次へ進む条件</th></tr></thead>
+      <tbody>
+        <tr><td>1 前進</td><td>前進ソレノイド Y0 を ON</td><td>前進端センサ X2 が ON</td></tr>
+        <tr><td>2 クランプ</td><td>クランプ Y2 を ON</td><td>クランプ確認 X4 が ON</td></tr>
+        <tr><td>3 後退</td><td>後退ソレノイド Y1 を ON</td><td>後退端センサ X3 が ON → 待機に戻る</td></tr>
+      </tbody>
+    </table></div>
+    <p>下のラダーは実際に動いています。「▶ 自動」にして起動ボタンを押すと、1 サイクル回ります。右の ST 直訳は、ラダーから機械的に生成したものです。</p>
+  </div>
+
+  <div class="bench">
+    <div class="bar">
+      <button class="pb" id="d4-start"><span class="cap"></span><span class="lbl">X0 起動ボタン</span><span class="stt">OFF</span></button>
+      <button class="btn primary" id="d4-step">1スキャン</button>
+      <button class="btn" id="d4-step10">10スキャン</button>
+      <button class="btn run" id="d4-run">▶ 自動</button>
+      <button class="btn" id="d4-reset">リセット</button>
+      <span class="sp"></span>
+      <span class="scan">SCAN <b id="d4-scan">0000</b></span>
+    </div>
+    <div class="plant" id="d4-plant"></div>
+    <div class="cols w32" style="margin-top:14px">
+      <div>
+        <p class="pane-h">ラダー（自己保持の鎖）</p>
+        <div class="ladder" id="d4-ladder"></div>
+      </div>
+      <div>
+        <p class="pane-h">変換その1: そのまま直訳（自動生成）</p>
+        <div class="st" id="d4-st1"></div>
+        <p class="hint">簡単で、動きも完全に同じ。でも「今どの工程か」は依然としてどこにも書かれていません。</p>
+      </div>
+    </div>
+    <div class="cols w32">
+      <div>
+        <p class="pane-h">変換その2: ST らしく書き直す（状態機械）</p>
+        <div class="st" id="d4-st2"></div>
+        <ul class="vars" id="d4-vars"></ul>
+      </div>
+      <div>
+        <p class="pane-h">今、どの工程？</p>
+        <div class="where">
+          <div class="card">
+            <h4>ラダー版: 3 つのビットの組み合わせ</h4>
+            <div class="bits" id="d4-bits"></div>
+            <div class="reading" id="d4-reading"></div>
+          </div>
+          <div class="card">
+            <h4>書き直し版: 変数 step が 1 つ</h4>
+            <div class="big" id="d4-stepbig">step = 0<small>IDLE 待機</small></div>
+            <div class="reading">そのまま HMI に「前進中」と表示できる。工程ごとのコードもひとまとまり。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="trace">
+      <p class="pane-h" style="margin-top:6px">波形（右端が今のスキャン）</p>
+      <canvas id="d4-trace"></canvas>
+      <div class="legend-line"><span><i class="a"></i>ラダー版の出力</span><span><i class="b"></i>書き直し版の出力</span><span><i class="c"></i>2 つの出力が違うスキャン</span></div>
+    </div>
+  </div>
+
+  <div class="key">
+    <p><strong>ここが変換の価値の正体です。</strong>ラダーには「今、工程 2 にいる」を持っている変数が <strong>どこにもありません</strong>。M101 / M102 / M103 の ON/OFF の組み合わせを、人がモニタ画面から読み取って初めて分かります。状態が暗黙的に、複数の変数に散らばっているのです。</p>
+    <p>書き直し版は、その暗黙の状態を <code class="inl">step</code> という名前のついた 1 変数にしました。「ST らしく書き直す」工数の大半は、<strong>この掘り起こし</strong>（どのビット群が工程を表しているか、どこがインタロックか）に消えます。</p>
+  </div>
+  <div class="note">
+    <p><strong>波形のオレンジの目印を見てください。</strong>ラダー版と書き直し版は、切り替わりの瞬間に出力が 1 スキャンずれています。ラダーはラングの順番で「工程 1 の OFF が 1 スキャン遅れる」構造なのに対し、CASE 文は同じスキャンで切り替わるからです。</p>
+    <p>機械の動き自体は同じ。でも「完全に同じ」とは言えないので、<strong>変換後に、同じ入力を流して出力を比べる等価性の検証が要ります。</strong>これも工数です。</p>
+  </div>
+</section>
+
+<!-- ================= 5 ================= -->
+<section class="ch" id="ch5">
+  <h2><span class="n">5</span>ラングの順番と「1 スキャン遅れ」</h2>
+  <div class="prose">
+    <p>スキャンは上から下に実行されます。だから、ある変数を <strong>書いてから読む</strong> と今のスキャンの値、<strong>読んでから書く</strong> と前のスキャンの値になります。同じ 2 ラングを、順番だけ入れ替えて試してみてください。</p>
+  </div>
+
+  <div class="bench">
+    <div class="bar">
+      <span class="seg" role="radiogroup" aria-label="ラングの順番">
+        <label><input type="radio" name="d5-order" value="AB" id="d5-ab" checked>A → B（書いてから読む）</label>
+        <label><input type="radio" name="d5-order" value="BA" id="d5-ba">B → A（読んでから書く）</label>
+      </span>
+      <button class="pb" id="d5-x0" aria-pressed="false"><span class="cap"></span><span class="lbl">X0</span><span class="stt">OFF</span></button>
+      <button class="btn primary" id="d5-step">1スキャン</button>
+      <button class="btn" id="d5-reset">リセット</button>
+      <span class="sp"></span>
+      <span class="scan">SCAN <b id="d5-scan">0000</b></span>
+    </div>
+    <div class="cols">
+      <div>
+        <p class="pane-h">ラダー</p>
+        <div class="ladder" id="d5-ladder"></div>
+        <div class="st" id="d5-st" style="margin-top:12px"></div>
+      </div>
+      <div>
+        <p class="pane-h">波形</p>
+        <canvas id="d5-trace"></canvas>
+        <div class="msg" id="d5-msg">X0 を ON にして「1スキャン」を押すと、Y0 が何スキャン後に ON になるかが出ます。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="key">
+    <p><strong>ラダーの順番は「タイミング」を決めています。</strong>設計者はこの 1 スキャン遅れや、リセット優先 / セット優先の書き方を意図的に使っています。CASE 文にまとめ直すと実行順が変わるので、意図だったのか偶然だったのかを見極めないと、動きが変わります。これが「難しさ」の 2 つ目です。</p>
+  </div>
+</section>
+
+<!-- ================= 6 ================= -->
+<section class="ch" id="ch6">
+  <h2><span class="n">6</span>まとめ</h2>
+  <h3>2 つの変換は、別の成果物</h3>
+  <div class="tblwrap"><table class="tbl">
+    <thead><tr><th></th><th>そのまま変換（直訳）</th><th>ST らしく書き直す</th></tr></thead>
+    <tbody>
+      <tr><td>作業</td><td>ラング → 式、1 対 1</td><td>状態を掘り起こし、機構ごとの FB と状態機械に再構成</td></tr>
+      <tr><td>自動化</td><td>ほぼ完全に自動化できる（このページの直訳は自動生成）</td><td>人のレビューが必須。AI と実機ログで補助</td></tr>
+      <tr><td>動きの一致</td><td>完全に一致する</td><td>1 スキャン差が出うる。等価性の検証が必要</td></tr>
+      <tr><td>今どの工程？</td><td>依然として分からない</td><td>1 変数で分かる</td></tr>
+      <tr><td>読みやすさ</td><td>下がる（絵が消える）</td><td>上がる</td></tr>
+      <tr><td>使い回し</td><td>できない</td><td>機構単位でできる</td></tr>
+      <tr><td>得るもの</td><td>Git、diff、テキスト検索</td><td>保守性、仕様との対応、AI 生成・検図</td></tr>
+      <tr><td>向く場面</td><td>とりあえずテキスト管理したい</td><td>よく触る機構、トラブルが多い機構、他ラインに流用したい機構</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>なぜ「書き直す」変換は難しいのか</h3>
+  <ul class="pl prose">
+    <li><strong>状態が暗黙的に分散している。</strong>どのビットの組み合わせが工程を表すのかを見つけ出す作業。機械語を構造化された C に逆コンパイルするときの制御フロー復元と同じ問題。</li>
+    <li><strong>ラングの順番と 1 スキャン遅れに意味がある。</strong>まとめ直すとタイミングが変わる。だから等価性検証が要る。</li>
+    <li><strong>同じ変数への書き込みが散在している。</strong>あちこちにある SET / RST を「誰がこの変数を書いている？」と全部集めないと、機構ごとにまとめられない。</li>
+  </ul>
+
+  <h3>誤解しやすいポイント</h3>
+  <ul class="pl prose">
+    <li><strong>1 つの CASE 文になるわけではない。</strong>設備には機構がたくさんある。機構ごとに FB に分かれ、それぞれが自分の step を持つ。その上に上位フローがあって、それも step を持つ。階層構造。</li>
+    <li><strong>CASE 文とも限らない。</strong>SFC 言語や State パターンでも書ける。本質は「どこにも書かれていない状態を、名前のついた変数にする」こと。</li>
+    <li><strong>全部が状態機械になるわけでもない。</strong>インタロック、非常停止、アラーム検出、手動ジョグは順番を持たない。ST でも単なる代入文のまま、CASE の外に置く。</li>
+    <li><strong>全ラダーに一律でかける必要はない。</strong>価値の高い機構から書き直し、残りは直訳でテキスト管理だけ享受する混ぜ方が現実的。</li>
+  </ul>
+
+  <p class="final">ラダーには「今どの工程か」がどこにも書かれていない。<br>ST 変換の価値は、それを名前のついた変数にすること。<br>その掘り起こしが、工数の正体。
+    <small>このページのラダーは本物のスキャン順序で評価しています。直訳 ST はラング定義から自動生成、書き直し版は手書きの状態機械を同じ入力で並走させています。</small>
+  </p>
+</section>
+</div>
+
+<script>
+(function(){
+'use strict';
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const pad=n=>String(n).padStart(4,'0');
+
+/* ---------------- ladder model ---------------- */
+const CW=88, RH=64, COILW=96, RAIL=22, NOTE_H=16;
+const NO=d=>({t:'NO',d}), NC=d=>({t:'NC',d}), PAR=(...rows)=>({t:'PAR',rows}), OUT=d=>({t:'OUT',d});
+const rung=(els,coil,note)=>({els,coil,note});
+
+function elW(el){return el.t==='PAR'?Math.max(...el.rows.map(rowW)):CW;}
+function rowW(row){return row.reduce((a,e)=>a+elW(e),0);}
+function elRows(el){return el.t==='PAR'?el.rows.length:1;}
+function rungRows(r){return Math.max(1,...r.els.map(elRows));}
+
+function evalEls(els,mem){
+  let p=true;
+  for(const el of els){
+    if(el.t==='PAR'){let any=false;for(const row of el.rows){if(evalEls(row,mem))any=true;}p=p&&any;}
+    else{const v=!!mem[el.d];p=p&&(el.t==='NO'?v:!v);}
+  }
+  return p;
+}
+/* one scan: rungs are executed top to bottom, each coil written immediately */
+function scanRungs(rungs,mem){for(const r of rungs){mem[r.coil.d]=evalEls(r.els,mem);}}
+
+function elsToST(els){
+  return els.map(el=>{
+    if(el.t==='PAR')return '('+el.rows.map(row=>row.length>1?'('+elsToST(row)+')':elsToST(row)).join(' OR ')+')';
+    return (el.t==='NC'?'NOT ':'')+el.d;
+  }).join(' AND ');
+}
+function rungsToST(rungs,mem){return rungs.map(r=>({text:`${r.coil.d} := ${elsToST(r.els)};`,val:!!mem[r.coil.d],hl:!!mem[r.coil.d]}));}
+
+/* ---------------- ladder renderer (GX Works style: ON = blue) ---------------- */
+let curOpts={};
+function wire(o,x1,y,x2,on){if(x2<=x1)return;o.push(`<line class="w${on?' on':''}" x1="${x1}" y1="${y}" x2="${x2}" y2="${y}"/>`);}
+function vline(o,x,y1,y2,on){if(y2<=y1)return;o.push(`<line class="w${on?' on':''}" x1="${x}" y1="${y1}" x2="${x}" y2="${y2}"/>`);}
+function drawContact(o,x,yc,el,closed,pin,names){
+  const cx=x+CW/2;
+  wire(o,x,yc,cx-10,pin);
+  if(closed)o.push(`<rect class="hl" x="${cx-14}" y="${yc-15}" width="28" height="30" rx="3"/>`);
+  const bc=closed?'bar on':'bar';
+  o.push(`<line class="${bc}" x1="${cx-10}" y1="${yc-12}" x2="${cx-10}" y2="${yc+12}"/><line class="${bc}" x1="${cx+10}" y1="${yc-12}" x2="${cx+10}" y2="${yc+12}"/>`);
+  if(el.t==='NC')o.push(`<line class="${bc}" x1="${cx-7}" y1="${yc+11}" x2="${cx+7}" y2="${yc-11}"/>`);
+  wire(o,cx+10,yc,x+CW,pin&&closed);
+  o.push(`<text class="dev" x="${cx}" y="${yc-20}" text-anchor="middle">${esc(el.d)}</text>`);
+  const nm=names&&names[el.d];if(nm)o.push(`<text class="cmt" x="${cx}" y="${yc+27}" text-anchor="middle">${esc(nm)}</text>`);
+  if(curOpts.clickable&&/^X/.test(el.d))o.push(`<rect class="hit" data-dev="${esc(el.d)}" x="${x+4}" y="${yc-24}" width="${CW-8}" height="48"><title>${esc(el.d)} をクリックで切り替え</title></rect>`);
+}
+function drawCoil(o,x,yc,coil,power,on,names){
+  const cx=x+COILW/2;
+  wire(o,x,yc,cx-12,power);
+  if(on)o.push(`<rect class="hl" x="${cx-16}" y="${yc-15}" width="32" height="30" rx="3"/>`);
+  const bc=on?'bar on':'bar';
+  o.push(`<path class="${bc}" d="M ${cx-6} ${yc-12} A 13 13 0 0 0 ${cx-6} ${yc+12}"/><path class="${bc}" d="M ${cx+6} ${yc-12} A 13 13 0 0 1 ${cx+6} ${yc+12}"/>`);
+  wire(o,cx+12,yc,x+COILW,on);
+  o.push(`<text class="dev" x="${cx}" y="${yc-20}" text-anchor="middle">${esc(coil.d)}</text>`);
+  const nm=names&&names[coil.d];if(nm)o.push(`<text class="cmt" x="${cx}" y="${yc+27}" text-anchor="middle">${esc(nm)}</text>`);
+}
+function drawEls(els,x,yc,pin,mem,names,o){
+  let p=pin;
+  for(const el of els){
+    if(el.t==='PAR'){
+      const w=elW(el),n=el.rows.length,yb=yc+(n-1)*RH;
+      vline(o,x,yc,yb,p);
+      let any=false;
+      el.rows.forEach((row,i)=>{const ry=yc+i*RH;const r=drawEls(row,x,ry,p,mem,names,o);wire(o,r.x,ry,x+w,r.power);if(r.power)any=true;});
+      vline(o,x+w,yc,yb,any);
+      p=p&&any;x+=w;
+    }else{
+      const v=!!mem[el.d],closed=el.t==='NO'?v:!v;
+      drawContact(o,x,yc,el,closed,p,names);
+      p=p&&closed;x+=CW;
+    }
+  }
+  return {x,power:p};
+}
+function renderLadder(rungs,mem,names,opts){
+  curOpts=opts||{};
+  const bodyW=Math.max(...rungs.map(r=>rowW(r.els)));
+  const W=RAIL+bodyW+48+COILW+RAIL;
+  const o=[];let y=8;
+  for(const r of rungs){
+    if(r.note){o.push(`<text class="note" x="${RAIL+8}" y="${y+10}">${esc(r.note)}</text>`);y+=NOTE_H;}
+    const rows=rungRows(r),yc=y+RH/2;
+    const res=drawEls(r.els,RAIL,yc,true,mem,names,o);
+    const cx=W-RAIL-COILW;
+    wire(o,res.x,yc,cx,res.power);
+    const on=!!mem[r.coil.d];
+    drawCoil(o,cx,yc,r.coil,res.power,on,names);
+    wire(o,cx+COILW,yc,W-RAIL,on);
+    y+=rows*RH+6;
+  }
+  const H=y+2;
+  const rails=`<line class="rail" x1="${RAIL}" y1="2" x2="${RAIL}" y2="${H-2}"/><line class="rail" x1="${W-RAIL}" y1="2" x2="${W-RAIL}" y2="${H-2}"/>`;
+  return `<svg class="ld" viewBox="0 0 ${W} ${H}" role="img" aria-label="ラダー図。通電している部分が青く表示される">${rails}${o.join('')}</svg>`;
+}
+
+/* ---------------- ST view (CODESYS online-view style) ---------------- */
+const KW=/\b(CASE|OF|END_CASE|IF|THEN|ELSE|END_IF|AND|OR|NOT|TRUE|FALSE|TYPE|END_TYPE|VAR|END_VAR)\b/g;
+function hlST(t){let s=esc(t);s=s.replace(/\(\*.*?\*\)/g,m=>`<i>${m}</i>`);s=s.replace(KW,'<b>$1</b>');return s;}
+function stView(el,lines){
+  el.innerHTML=lines.map(l=>{
+    const cls=['ln'];if(l.hl)cls.push('hl');if(l.dim)cls.push('dim');
+    let v='';
+    if(l.val!==undefined){const vc=l.val===true?'on':l.val===false?'off':'num';v=`<span class="val ${vc}">${l.val===true?'TRUE':l.val===false?'FALSE':esc(l.val)}</span>`;}
+    return `<div class="${cls.join(' ')}"><code>${hlST(l.text)}</code>${v}</div>`;
+  }).join('');
+}
+
+/* ---------------- trace (strip chart) ---------------- */
+function cssVar(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim();}
+class Trace{
+  constructor(canvas,rows,n){this.c=canvas;this.rows=rows;this.n=n;this.h=[];
+    if('ResizeObserver' in window){this.ro=new ResizeObserver(()=>this.draw());this.ro.observe(canvas.parentElement);}
+    else window.addEventListener('resize',()=>this.draw());
+    if(matchMedia){const mq=matchMedia('(prefers-color-scheme: dark)');mq.addEventListener&&mq.addEventListener('change',()=>this.draw());}
+  }
+  reset(){this.h=[];this.draw();}
+  push(s){this.h.push(s);if(this.h.length>this.n)this.h.shift();this.draw();}
+  draw(){
+    const c=this.c,dpr=window.devicePixelRatio||1,W=Math.max(200,c.parentElement.clientWidth||600);
+    const rowH=22,numH=30,top=6,bottom=18,labW=W<520?70:100;
+    const H=top+this.rows.reduce((a,r)=>a+(r.type==='num'?numH:rowH),0)+bottom;
+    c.width=Math.round(W*dpr);c.height=Math.round(H*dpr);c.style.height=H+'px';
+    const g=c.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+    const on=cssVar('--on'),ink=cssVar('--ink'),muted=cssVar('--muted'),line=cssVar('--line'),warn=cssVar('--warn'),onSoft=cssVar('--on-soft');
+    const plotX=labW,plotW=W-labW-6,cw=plotW/this.n,off=this.n-this.h.length;
+    g.font='11px "IBM Plex Mono", ui-monospace, monospace';
+    if(this.h.length){g.fillStyle=onSoft;g.globalAlpha=.55;g.fillRect(plotX+(this.n-1)*cw,0,cw,H-bottom+4);g.globalAlpha=1;}
+    let y=top;
+    for(const r of this.rows){
+      const rh=r.type==='num'?numH:rowH;
+      g.fillStyle=muted;g.textAlign='right';g.textBaseline='middle';g.fillText(r.label,labW-8,y+rh/2);
+      g.strokeStyle=line;g.lineWidth=1;g.beginPath();g.moveTo(plotX,y+rh-4.5);g.lineTo(plotX+plotW,y+rh-4.5);g.stroke();
+      this.h.forEach((s,i)=>{
+        const x=plotX+(off+i)*cw,bw=Math.max(cw-1,1);
+        if(r.type==='num'){
+          const v=s[r.key]||0,max=r.max||3,bh=(rh-12)*(v/max);
+          if(v>0){g.fillStyle=on;g.globalAlpha=.85;g.fillRect(x,y+rh-4-bh,bw,bh);g.globalAlpha=1;}
+          if(i===0||this.h[i-1][r.key]!==v){g.fillStyle=ink;g.textAlign='left';g.textBaseline='top';g.fillText(String(v),x+2,y+1);g.textBaseline='middle';}
+        }else{
+          const v=!!s[r.key];
+          if(v){g.fillStyle=on;g.fillRect(x,y+4,bw,rh-10);}
+          if(r.shadow){
+            const sv=!!s[r.shadow];
+            if(sv){g.strokeStyle=ink;g.lineWidth=1.2;g.setLineDash([2,2]);g.strokeRect(x+.5,y+4.5,Math.max(cw-2,1),rh-11);g.setLineDash([]);}
+            if(sv!==v){g.fillStyle=warn;g.fillRect(x,y+rh-3.5,bw,3);}
+          }
+        }
+      });
+      y+=rh;
+    }
+    g.fillStyle=muted;g.textAlign='center';g.textBaseline='top';
+    this.h.forEach((s,i)=>{if(s.scan%(this.n<=24?4:10)===0){g.fillText('#'+s.scan,plotX+(off+i)*cw+cw/2,y+2);}});
+  }
+}
+
+/* ---------------- shared control helpers ---------------- */
+function latch(btn,onChange){ /* latching pushbutton */
+  let st=false;
+  const set=v=>{st=v;btn.classList.toggle('on',st);btn.setAttribute('aria-pressed',String(st));$('.stt',btn).textContent=st?'ON':'OFF';onChange&&onChange(st);};
+  btn.addEventListener('click',()=>set(!st));
+  return {get:()=>st,set};
+}
+function runner(fn,ms,btn){
+  let t=null;
+  const api={
+    running:()=>!!t,
+    stop(){if(t){clearInterval(t);t=null;}btn.classList.remove('on');btn.textContent='▶ 自動';},
+    start(){if(t)return;t=setInterval(fn,ms);btn.classList.add('on');btn.textContent='■ 停止';},
+    toggle(){t?api.stop():api.start();}
+  };
+  btn.addEventListener('click',api.toggle);
+  return api;
+}
+
+/* ================= demo 1: scan loop ================= */
+(function(){
+  const rungs=[rung([NO('X0')],OUT('Y0'))];
+  const names={X0:'スイッチ',Y0:'ランプ'};
+  const mem={X0:false,Y0:false};let lamp=false,scanNo=0,busy=false;
+  const ladder=$('#d1-ladder'),st=$('#d1-st'),phases=[$('#d1-p0'),$('#d1-p1'),$('#d1-p2')];
+  const sw=latch($('#d1-sw'));
+  function draw(){
+    ladder.innerHTML=renderLadder(rungs,mem,names);
+    stView(st,rungsToST(rungs,mem));
+    $('#d1-scan').textContent=pad(scanNo);
+    $('#d1-lamp').classList.toggle('on',lamp);
+    $('#d1-img').textContent=mem.X0?'ON':'OFF';
+  }
+  function phase(i){phases.forEach((p,k)=>p.classList.toggle('active',k===i));}
+  const stepBtn=$('#d1-step');
+  stepBtn.addEventListener('click',()=>{
+    if(busy)return;busy=true;stepBtn.disabled=true;
+    const seq=[()=>{mem.X0=sw.get();draw();},()=>{scanRungs(rungs,mem);draw();},()=>{lamp=mem.Y0;draw();}];
+    if(reduced){seq.forEach((f,i)=>{phase(i);f();});phase(-1);scanNo++;draw();busy=false;stepBtn.disabled=false;return;}
+    let i=0;
+    const tick=()=>{if(i<3){phase(i);seq[i]();i++;setTimeout(tick,380);}else{phase(-1);scanNo++;draw();busy=false;stepBtn.disabled=false;}};
+    tick();
+  });
+  draw();
+})();
+
+/* ================= chapter 2: legend ================= */
+(function(){
+  const items=[
+    {ttl:'a 接点',sub:'変数を読む。ON のとき通す',rungs:[rung([NO('X0')],OUT('Y0'))]},
+    {ttl:'b 接点',sub:'NOT。OFF のとき通す',rungs:[rung([NC('X0')],OUT('Y0'))]},
+    {ttl:'直列',sub:'AND',rungs:[rung([NO('X0'),NO('X1')],OUT('Y0'))]},
+    {ttl:'並列',sub:'OR',rungs:[rung([PAR([NO('X0')],[NO('X1')])],OUT('Y0'))]},
+  ];
+  const host=$('#legend');
+  items.forEach((it,idx)=>{
+    const mem={X0:false,X1:false,Y0:false};
+    const card=document.createElement('div');card.className='card';
+    card.innerHTML=`<h4>${it.ttl}<small>${it.sub}</small></h4><div class="ladder mini click" id="lg-${idx}"></div><div class="st" id="lgst-${idx}"></div>`;
+    host.appendChild(card);
+    const ld=$('#lg-'+idx),st=$('#lgst-'+idx);
+    const draw=()=>{scanRungs(it.rungs,mem);ld.innerHTML=renderLadder(it.rungs,mem,null,{clickable:true});stView(st,rungsToST(it.rungs,mem));};
+    ld.addEventListener('click',e=>{const h=e.target.closest('.hit');if(!h)return;const d=h.getAttribute('data-dev');mem[d]=!mem[d];draw();});
+    draw();
+  });
+})();
+
+/* ================= demo 3: self-holding ================= */
+(function(){
+  const rungs=[
+    rung([PAR([NO('X0')],[NO('M100')]),NC('X1')],OUT('M100'),'自己保持: 起動で ON。自分の接点で保持。停止で OFF'),
+    rung([NO('M100')],OUT('Y0')),
+  ];
+  const names={X0:'起動ボタン',X1:'停止ボタン',M100:'運転中',Y0:'運転ランプ'};
+  let mem,scanNo;
+  const ladder=$('#d3-ladder'),st=$('#d3-st');
+  const x0=latch($('#d3-x0')),x1=latch($('#d3-x1'));
+  const tr=new Trace($('#d3-trace'),[{key:'X0',label:'X0 起動'},{key:'X1',label:'X1 停止'},{key:'M100',label:'M100 運転中'},{key:'Y0',label:'Y0 ランプ'}],48);
+  function reset(){mem={X0:false,X1:false,M100:false,Y0:false};scanNo=0;tr.reset();draw();}
+  function draw(){ladder.innerHTML=renderLadder(rungs,mem,names);stView(st,rungsToST(rungs,mem));$('#d3-scan').textContent=pad(scanNo);$('#d3-lamp').classList.toggle('on',mem.Y0);}
+  function step(){mem.X0=x0.get();mem.X1=x1.get();scanRungs(rungs,mem);scanNo++;tr.push({scan:scanNo,X0:mem.X0,X1:mem.X1,M100:mem.M100,Y0:mem.Y0});draw();}
+  $('#d3-step').addEventListener('click',step);
+  const run=runner(step,250,$('#d3-run'));
+  $('#d3-reset').addEventListener('click',()=>{run.stop();x0.set(false);x1.set(false);reset();});
+  reset();
+})();
+
+/* ================= demo 4: step chain vs state machine ================= */
+(function(){
+  const rungs=[
+    rung([PAR([NO('X0')],[NO('M101')]),NC('M102'),NC('M103')],OUT('M101'),'工程1: 起動で ON。工程2 が始まったら OFF'),
+    rung([PAR([NO('M101'),NO('X2')],[NO('M102')]),NC('M103')],OUT('M102'),'工程2: 工程1中に前進端で ON。工程3 が始まったら OFF'),
+    rung([PAR([NO('M102'),NO('X4')],[NO('M103')]),NC('X3')],OUT('M103'),'工程3: 工程2中にクランプ確認で ON。後退端で OFF'),
+    rung([NO('M101')],OUT('Y0'),'出力: 工程ビットをそのまま機器へ'),
+    rung([NO('M102')],OUT('Y2')),
+    rung([NO('M103')],OUT('Y1')),
+  ];
+  const names={X0:'起動ボタン',X2:'前進端',X3:'後退端',X4:'クランプ確認',M101:'工程1 前進',M102:'工程2 クランプ',M103:'工程3 後退',Y0:'前進SOL',Y1:'後退SOL',Y2:'クランプ'};
+  const STEP_NAME=['IDLE 待機','FWD 前進','CLAMP クランプ','BWD 後退'];
+  const SM=[
+    {t:'CASE step OF'},
+    {t:'  IDLE:   (* 0 待機 *)',s:0},
+    {t:'    IF start THEN step := FWD; END_IF',s:0},
+    {t:'  FWD:    (* 1 前進 *)',s:1},
+    {t:'    solFwd := TRUE;',s:1},
+    {t:'    IF lsFwd THEN solFwd := FALSE; step := CLAMP; END_IF',s:1},
+    {t:'  CLAMP:  (* 2 クランプ *)',s:2},
+    {t:'    clamp := TRUE;',s:2},
+    {t:'    IF clampOk THEN step := BWD; END_IF',s:2},
+    {t:'  BWD:    (* 3 後退 *)',s:3},
+    {t:'    clamp := FALSE;',s:3},
+    {t:'    solBwd := TRUE;',s:3},
+    {t:'    IF lsBwd THEN solBwd := FALSE; step := IDLE; END_IF',s:3},
+    {t:'END_CASE'},
+  ];
+  let mem,sm,plant,scanNo,pending;
+  const ladder=$('#d4-ladder'),st1=$('#d4-st1'),st2=$('#d4-st2'),vars=$('#d4-vars'),plantEl=$('#d4-plant'),startBtn=$('#d4-start');
+  const tr=new Trace($('#d4-trace'),[
+    {key:'X0',label:'X0 起動'},{key:'X2',label:'X2 前進端'},{key:'X4',label:'X4 クランプ'},{key:'X3',label:'X3 後退端'},
+    {key:'M101',label:'M101 工程1'},{key:'M102',label:'M102 工程2'},{key:'M103',label:'M103 工程3'},
+    {key:'Y0',label:'Y0 前進SOL',shadow:'sY0'},{key:'Y2',label:'Y2 クランプ',shadow:'sY2'},{key:'Y1',label:'Y1 後退SOL',shadow:'sY1'},
+    {key:'step',label:'step (ST)',type:'num',max:3},
+  ],64);
+
+  function reset(){
+    mem={X0:false,X2:false,X3:true,X4:false,M101:false,M102:false,M103:false,Y0:false,Y1:false,Y2:false};
+    sm={step:0,solFwd:false,clamp:false,solBwd:false};
+    plant={pos:0,clamp:0};scanNo=0;pending=false;tr.reset();draw();
+  }
+  function smStep(s,i){ /* the hand-written state machine, same inputs as the ladder */
+    switch(s.step){
+      case 0:if(i.X0)s.step=1;break;
+      case 1:s.solFwd=true;if(i.X2){s.solFwd=false;s.step=2;}break;
+      case 2:s.clamp=true;if(i.X4)s.step=3;break;
+      case 3:s.clamp=false;s.solBwd=true;if(i.X3){s.solBwd=false;s.step=0;}break;
+    }
+  }
+  function step(){
+    /* 1) read inputs from the machine */
+    mem.X0=pending;pending=false;
+    mem.X2=plant.pos>=100;mem.X3=plant.pos<=0;mem.X4=plant.clamp>=6;
+    const inp={X0:mem.X0,X2:mem.X2,X3:mem.X3,X4:mem.X4};
+    /* 2) run the ladder, and the ST version in parallel */
+    scanRungs(rungs,mem);
+    smStep(sm,inp);
+    /* 3) the machine reacts to the ladder outputs */
+    if(mem.Y0&&!mem.Y1)plant.pos=Math.min(100,plant.pos+5);
+    else if(mem.Y1&&!mem.Y0)plant.pos=Math.max(0,plant.pos-5);
+    plant.clamp=mem.Y2?Math.min(6,plant.clamp+1):Math.max(0,plant.clamp-2);
+    scanNo++;
+    tr.push({scan:scanNo,X0:mem.X0,X2:mem.X2,X3:mem.X3,X4:mem.X4,M101:mem.M101,M102:mem.M102,M103:mem.M103,Y0:mem.Y0,Y1:mem.Y1,Y2:mem.Y2,sY0:sm.solFwd,sY1:sm.solBwd,sY2:sm.clamp,step:sm.step});
+    draw();
+  }
+  function plantSVG(){
+    const x0=96,span=330,rx=x0+plant.pos/100*span,cx=x0+span+13;
+    const jaw=Math.min(1,plant.clamp/6),gap=30-16*jaw;
+    return `<svg viewBox="0 0 520 136" role="img" aria-label="シリンダの模型。ラダーの出力で動き、センサの値をラダーに返す">
+      <line class="trk" x1="${x0}" y1="104" x2="${x0+span+34}" y2="104"/>
+      <rect class="body" x="30" y="66" width="70" height="40" rx="4"/>
+      <text class="cmt" x="65" y="124" text-anchor="middle">シリンダ</text>
+      <line class="rod" x1="100" y1="86" x2="${rx.toFixed(1)}" y2="86"/>
+      <rect class="piece" x="${rx.toFixed(1)}" y="70" width="26" height="32" rx="3"/>
+      <g class="ls${mem.X3?' on':''}"><path d="M${x0+13} 110 l-6 10 h12z"/><text class="cmt" x="${x0+13}" y="132" text-anchor="middle">X3 後退端</text></g>
+      <g class="ls${mem.X2?' on':''}"><path d="M${cx} 110 l-6 10 h12z"/><text class="cmt" x="${cx}" y="132" text-anchor="middle">X2 前進端</text></g>
+      <g class="jaw${mem.X4?' on':''}">
+        <rect x="${(cx-gap-8).toFixed(1)}" y="62" width="8" height="44" rx="2"/>
+        <rect x="${(cx+gap).toFixed(1)}" y="62" width="8" height="44" rx="2"/>
+        <text class="cmt" x="${cx}" y="50" text-anchor="middle">X4 クランプ確認</text>
+      </g>
+      <g class="sol${mem.Y0?' on':''}"><text x="30" y="34">Y0 前進SOL →</text></g>
+      <g class="sol${mem.Y1?' on':''}"><text x="30" y="52">Y1 後退SOL ←</text></g>
+      <g class="sol${mem.Y2?' on':''}"><text x="${cx-46}" y="34" text-anchor="end">Y2 クランプ</text></g>
+    </svg>`;
+  }
+  function draw(){
+    ladder.innerHTML=renderLadder(rungs,mem,names);
+    stView(st1,rungsToST(rungs,mem));
+    stView(st2,SM.map(l=>({text:l.t,hl:l.s===sm.step,dim:l.s!==undefined&&l.s!==sm.step})));
+    const v=(n,b)=>`<li><span>${n}</span><span class="val ${b?'on':'off'}">${b?'TRUE':'FALSE'}</span></li>`;
+    vars.innerHTML=`<li><span>step</span><span class="val num">${sm.step} (${STEP_NAME[sm.step].split(' ')[0]})</span></li>`+v('start ← X0',mem.X0)+v('lsFwd ← X2',mem.X2)+v('clampOk ← X4',mem.X4)+v('lsBwd ← X3',mem.X3)+v('solFwd → Y0',sm.solFwd)+v('clamp → Y2',sm.clamp)+v('solBwd → Y1',sm.solBwd);
+    plantEl.innerHTML=plantSVG();
+    $('#d4-scan').textContent=pad(scanNo);
+    startBtn.classList.toggle('on',pending);$('.stt',startBtn).textContent=pending?'ON':'OFF';
+    const bits=['M101','M102','M103'];
+    $('#d4-bits').innerHTML=bits.map(b=>`<span><span class="lamp${mem[b]?' on':''}"></span>${b} = ${mem[b]?'ON':'OFF'}</span>`).join('');
+    const onIdx=bits.map((b,i)=>mem[b]?i:-1).filter(i=>i>=0);
+    let rd;
+    if(onIdx.length===0)rd='全部 OFF → 人が「待機中だな」と読み取る';
+    else if(onIdx.length===1)rd=`→ 人が組み合わせから「<b>工程 ${onIdx[0]+1}（${names[bits[onIdx[0]]].split(' ')[1]}）</b>」と読み取る。どこにも「工程 ${onIdx[0]+1}」とは書かれていない`;
+    else rd=`工程 ${onIdx.map(i=>i+1).join(' と ')} が同時に ON → 切り替わりの 1 スキャンだけ、こういう状態になる`;
+    $('#d4-reading').innerHTML=rd;
+    $('#d4-stepbig').innerHTML=`step = ${sm.step}<small>${esc(STEP_NAME[sm.step])}</small>`;
+  }
+  startBtn.addEventListener('click',()=>{pending=true;draw();});
+  $('#d4-step').addEventListener('click',step);
+  $('#d4-step10').addEventListener('click',()=>{for(let i=0;i<10;i++)step();});
+  const run=runner(step,110,$('#d4-run'));
+  $('#d4-reset').addEventListener('click',()=>{run.stop();reset();});
+  reset();
+  /* open mid-cycle so the first look shows the ladder working: start pressed, 12 scans in */
+  pending=true;for(let i=0;i<12;i++)step();
+})();
+
+/* ================= demo 5: rung order ================= */
+(function(){
+  const A=rung([NO('X0')],OUT('M1'),'ラング A:  M1 := X0'),B=rung([NO('M1')],OUT('Y0'),'ラング B:  Y0 := M1');
+  const names={X0:'入力',M1:'中間',Y0:'出力'};
+  let mem,scanNo,order='AB',x0Rise=null,y0Rise=null;
+  const ladder=$('#d5-ladder'),st=$('#d5-st'),msg=$('#d5-msg');
+  const x0=latch($('#d5-x0'));
+  const tr=new Trace($('#d5-trace'),[{key:'X0',label:'X0'},{key:'M1',label:'M1'},{key:'Y0',label:'Y0'}],20);
+  const rungs=()=>order==='AB'?[A,B]:[B,A];
+  function reset(){mem={X0:false,M1:false,Y0:false};scanNo=0;x0Rise=y0Rise=null;tr.reset();draw();
+    msg.innerHTML=order==='AB'?'順番 A → B。X0 を ON にして「1スキャン」を押してください。':'順番 B → A。X0 を ON にして「1スキャン」を押してください。';}
+  function draw(){ladder.innerHTML=renderLadder(rungs(),mem,names);stView(st,rungsToST(rungs(),mem));$('#d5-scan').textContent=pad(scanNo);}
+  function step(){
+    const px=mem.X0,py=mem.Y0;
+    mem.X0=x0.get();scanRungs(rungs(),mem);scanNo++;
+    if(!px&&mem.X0){x0Rise=scanNo;y0Rise=null;}
+    if(!py&&mem.Y0)y0Rise=scanNo;
+    tr.push({scan:scanNo,X0:mem.X0,M1:mem.M1,Y0:mem.Y0});draw();
+    if(x0Rise!==null&&y0Rise!==null&&y0Rise>=x0Rise){
+      const d=y0Rise-x0Rise;
+      msg.innerHTML=`X0 が ON になったスキャン: <b>#${x0Rise}</b> ／ Y0 が ON になったスキャン: <b>#${y0Rise}</b> → 遅れ <b>${d} スキャン</b>。`+(d===0
+        ?' ラング A で M1 を書いた直後にラング B が読むので、同じスキャンで Y0 が ON になる。'
+        :' ラング B が先に実行されて<b>前のスキャンの M1（まだ OFF）</b>を読むので、Y0 は次のスキャンまで待つ。');
+    }else if(x0Rise!==null){msg.innerHTML=`X0 が ON になったスキャン: <b>#${x0Rise}</b>。Y0 はまだ OFF。もう 1 スキャン進めてください。`;}
+  }
+  $('#d5-step').addEventListener('click',step);
+  $('#d5-reset').addEventListener('click',()=>{x0.set(false);reset();});
+  document.querySelectorAll('input[name="d5-order"]').forEach(r=>r.addEventListener('change',e=>{order=e.target.value;x0.set(false);reset();}));
+  reset();
+})();
+})();
+</script>
+</body>
+</html>
