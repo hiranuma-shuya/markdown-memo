@@ -114,6 +114,18 @@ ol.pl li{margin:6px 0}
 .lane.c{fill:var(--warn-soft);opacity:.8}
 .node{fill:var(--panel);stroke:var(--ink);stroke-width:1.4}
 
+/* example block */
+.ex{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:var(--panel);margin:14px 0}
+.ex h4{margin:0 0 8px;font-size:14.5px;font-weight:600}
+.ex .code{font-family:var(--mono);font-size:13px;background:var(--code-bg);border:1px solid var(--line2);border-radius:6px;padding:8px 12px;margin:0 0 8px;overflow-x:auto}
+.ex .code i{color:var(--muted);font-style:normal}
+.ex .tblwrap{margin-top:0}
+.ex ul.pl{margin-top:10px;font-size:14.5px}
+.ex .tsumari{margin:12px 0 0;padding:10px 14px;border-left:3px solid var(--on);background:var(--on-soft);border-radius:0 8px 8px 0;font-size:14.5px}
+.ex .tsumari strong{color:var(--on-ink)}
+table.tbl.sm{font-size:13px;min-width:520px}
+.tbl.sm th,.tbl.sm td{padding:7px 8px}
+
 /* comparison table */
 .tblwrap{overflow-x:auto;margin-top:14px}
 table.tbl{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
@@ -211,6 +223,25 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
   <h3>困難 1: 多対一なので、逆算が一意に決まらない</h3>
   <p class="prose">異なる設計が、同じラダーになりえます。あるビットは工程かもしれないし、インタロックかもしれないし、単なるフラグかもしれない。設計からラダーへの写像は情報を捨てているので、逆写像は関数になりません。候補から1つを選ぶ判断が必要になります。</p>
   <figure class="fig" data-fig="manyToOne"><figcaption><b>多対一。</b>3つの異なる設計が、同じ自己保持ラングになる。ラングだけを見て「どれだったか」は決められない。</figcaption></figure>
+  <div class="ex">
+    <h4>例: 同じ 1 本のラングの、3 つの読み方</h4>
+    <pre class="code">M105 := (X3 OR M105) AND NOT X4;   <i>(* X3 で ON、自分で保持、X4 で OFF *)</i></pre>
+    <div class="tblwrap"><table class="tbl sm">
+      <thead><tr><th></th><th>工程ビット</th><th>インタロック</th><th>ただのフラグ</th></tr></thead>
+      <tbody>
+        <tr><td>X3 / X4</td><td>前工程の完了 / 次工程の開始</td><td>運転準備ボタン / 非常停止</td><td>ワーク検出（一瞬 ON）/ 排出完了</td></tr>
+        <tr><td>M105 の名前</td><td>「工程5 クランプ中」</td><td>「運転許可」</td><td>「ワーク有り記憶」</td></tr>
+        <tr><td>誰が読むか</td><td>クランプ出力と次工程だけ。M104・M106 と同時に ON しない</td><td>ほぼ全ての出力ラングが直列接点として読む</td><td>HMI の表示とカウンタだけ</td></tr>
+        <tr><td>ST での置き場所</td><td>FB の内部状態。列挙型 <code class="inl">step</code> の 1 値</td><td>CASE の外。全出力に AND で掛ける条件</td><td>CASE の外。表示用の代入文</td></tr>
+      </tbody>
+    </table></div>
+    <ul class="pl">
+      <li><strong>違いはラングではなく、使われ方にある。</strong>見分けるには、誰がどう読んでいるか、同時に ON になる仲間がいるか、コメントに何と書いてあるかを、そのラングの外で調べる必要がある。</li>
+      <li><strong>間違えると壊れる。</strong>インタロックを工程ビットと思って CASE に閉じ込めると、他の機構が読めなくなり安全側の条件が消える（後述の「落ちたインタロック」）。工程ビットをフラグと思って CASE の外に残すと、「今どの工程か」の情報源が 2 つに割れる。</li>
+      <li><strong>兼任もある。</strong>「工程5 クランプ中」がそのまま「クランプ中は搬送を動かすな」というインタロックとして読まれているのは、よくある形。</li>
+    </ul>
+    <p class="tsumari"><strong>つまり、</strong>ラダーには局所変数が無く、全部が同じ見た目のグローバルなビットとして書かれている。分からないのは「本来どうあるべきだったか」で、その中身は <strong>所有者</strong>（誰のもので誰が読んでいいか）、<strong>型</strong>（bool か、列挙型の 1 値か）、<strong>役割</strong>（順番か、許可か、記録か）の 3 つ。関数もクラスも無く全変数がグローバルな int で書かれたプログラムをクラスに分ける作業と同じで、答えは書いた人の頭の中にしかない。構造の変換とは、ビットの一つひとつにこの 3 つを与え直す作業のこと。表記の変換はこれをせず、全部グローバルのまま ST に写す。だから簡単で、だから嬉しくない。</p>
+  </div>
 
   <h3>困難 2: 状態が大域に散っている</h3>
   <p class="prose">1つの機構の状態は複数のラングにまたがり、1つのラングは複数の機構に関わります。だからラング単位では処理できず、プログラム全体を読まないと1つの機構も切り出せません。</p>
