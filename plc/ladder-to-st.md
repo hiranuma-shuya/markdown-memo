@@ -3,7 +3,7 @@
 > 触って理解したい人向けのシミュレータ: [ladder-to-st-simulator.html](./ladder-to-st-simulator.html)
 > （ブラウザで開くと、ラダーが1スキャンずつ動く様子と、ST 2種類との対応が見えます）
 >
-> 後編（一段抽象化した図解: 表記の変換と構造の変換、コンパイラとの対応、AI で自動化できる工程）: [notation-vs-structure.html](./notation-vs-structure.html)
+> 後編（一段抽象化した図解: 表記の変換と構造の変換、AI で自動化できる工程）: [notation-vs-structure.html](./notation-vs-structure.html)
 
 「RD → ST」と書いていた変換は、正式には **LD（Ladder Diagram, ラダー図）→ ST（Structured Text）** です。
 このメモでは「ラダー」と呼びます。

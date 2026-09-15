@@ -166,7 +166,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
 <header class="hero">
   <p class="eyebrow">PLC / ラダー→ST 後編</p>
   <h1>表記の変換と構造の変換</h1>
-  <p class="lede">ラダー→ST 変換を一段抽象化します。変換は2種類あること、なぜ片方だけ難しいのか、コンパイラとどう対応するか、そして AI でどこまで自動化できるか。</p>
+  <p class="lede">ラダー→ST 変換を一段抽象化します。変換は2種類あること、なぜ片方だけ難しいのか、そして AI でどこまで自動化できるか。</p>
   <div class="links">
     <a href="https://claude.ai/artifact/P4Q6nHvV5dL2ti4oheqiX8">前編: 動くシミュレータ</a>
     <span class="chip">メモ: plc/ladder-to-st.md</span>
@@ -176,8 +176,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
     <a href="#ch2"><b>2</b>表記の変換が簡単な理由</a>
     <a href="#ch3"><b>3</b>構造の変換が難しい理由</a>
     <a href="#ch4"><b>4</b>情報の非対称性</a>
-    <a href="#ch5"><b>5</b>コンパイラとの対応</a>
-    <a href="#ch6"><b>6</b>AI で自動化できるか</a>
+    <a href="#ch5"><b>5</b>AI で自動化できるか</a>
   </nav>
 </header>
 
@@ -273,28 +272,12 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
       <tr><td>性質</td><td>翻訳</td><td>逆解析と再設計</td></tr>
     </tbody>
   </table></div>
+  <p class="prose">コンパイラの言葉で言えば、表記の変換はトランスパイル、構造の変換は逆コンパイルと再設計です。ラダーが機械語より有利な点は1つだけあって、「前進端」「起動ボタン」という名前が残っていること。構造の変換で AI が本当に効くのは、この名前を読む部分です。</p>
 </section>
 
 <!-- 5 -->
 <section class="ch" id="ch5">
-  <h2><span class="n">5</span>コンパイラとの対応</h2>
-  <div class="prose">
-    <p>同じ話です。対応させると、こうなります。</p>
-    <ul class="pl">
-      <li><strong>表記の変換 = トランスパイル。</strong>TypeScript から JavaScript、Java から Kotlin の自動変換と同じ。同じ抽象度の言語の間を、意味を保って移す。構文解析して、別の構文で出力するだけ。</li>
-      <li><strong>構造の変換 = 逆コンパイル + 再設計。</strong>機械語から C を復元する作業と同じ。コンパイルは設計から実装に降りる過程で、名前と構造を捨てる。逆コンパイルはその捨てた情報を推定で埋める。だから逆コンパイラは「動く C」は出せるが、「元の設計者が書いた C」は出せない。</li>
-    </ul>
-  </div>
-  <figure class="fig" data-fig="compiler"><figcaption><b>同じ形の図になる。</b>下向きの矢印が情報を捨てる方向、横向きが表記の変換、点線の斜め上向きが構造の変換。</figcaption></figure>
-  <div class="prose">
-    <p>ラダーが機械語より厄介な点が1つあります。機械語はコンパイラという機械が生成したので、パターンが規則的で、逆コンパイラはその規則を利用できます。ラダーは人が直接書いた低水準コードなので、パターンが書いた人ごとに違います。</p>
-    <p>逆に有利な点もあります。機械語にはコメントもデバイス名もないが、ラダーには「前進端」「起動ボタン」という名前が残っている。構造の変換で AI が本当に効くのは、この名前を読む部分です。</p>
-  </div>
-</section>
-
-<!-- 6 -->
-<section class="ch" id="ch6">
-  <h2><span class="n">6</span>AI で自動化できるか</h2>
+  <h2><span class="n">5</span>AI で自動化できるか</h2>
   <div class="key">
     <p><strong>結論: 工程を分けて考えれば大半は自動化でき、最後の判断だけが残る。</strong>プロンプトの工夫は決め手ではありません。決め手は「決定的な道具」「検証器」「入力データの質」の3つです。</p>
   </div>
@@ -513,20 +496,6 @@ F.info=()=>{const id='f4';let s='';
   s+=label(340,208,'JavaScript で言えば、圧縮されたコードを整形するのが表記の変換。','lb');
   s+=label(340,226,'元の変数名とモジュール構造を復元するのが構造の変換。ソースマップに当たるのが仕様書。','lb');
   return svg(id,680,238,s,'設計にあった名前・境界・意図はラダーになる時に消え、ST の設計側では推定するしかない');
-};
-F.compiler=()=>{const id='f5';let s='';
-  const panel=(x,title,TL,BL,BR,TR,eDown,eRight,eDiag)=>{
-    s+=label(x+160,18,title,'lb b');
-    s+=box(x+10,36,124,44,TL,'tool');s+=box(x+10,166,124,44,BL,'tool');s+=box(x+186,166,124,44,BR,'tool');s+=box(x+186,36,124,44,TR,'acc');
-    s+=arrow(x+72,82,x+72,164,id);s+=label(x+64,128,eDown,'lb','end');
-    s+=arrow(x+136,188,x+184,188,id);s+=label(x+160,228,eRight,'lb');
-    s+=arrow(x+136,166,x+186,84,id,{dashed:true});s+=label(x+196,134,eDiag,'lb','start');
-  };
-  panel(20,'一般のソフトウェア','C のソース','機械語','別の機械語','復元された C','コンパイル','バイナリ変換','逆コンパイル');
-  panel(350,'PLC','設計（頭の中）','ラダー','ST 直訳','状態機械の ST','人が書く','表記の変換','構造の変換');
-  s+=label(340,254,'同じ形。違いは、機械語は機械が作ったので規則的、ラダーは人が書いたので癖がある。','lb');
-  s+=label(340,272,'代わりにラダーには「前進端」「起動ボタン」という名前が残っている。AI が効くのはそこ。','lb');
-  return svg(id,680,284,s,'一般のソフトウェアと PLC で、設計から実装へ降りる矢印、同じ抽象度の横の変換、点線の逆向き変換が同じ形になる');
 };
 F.lanes=()=>{const id='f6';let s='';
   [[30,'決定的な道具',''],[110,'LLM','b'],[190,'人','c']].forEach(([y,t,c])=>{s+=`<rect class="lane ${c}" x="0" y="${y}" width="790" height="80"/>`;s+=label(12,y+44,t,'lb b','start');});
