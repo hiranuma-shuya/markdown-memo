@@ -57,8 +57,9 @@ async function main() {
 
   console.log('\n== page ==');
   check('title', (await page.title()) === 'ラダー→ST 変換のしくみ', await page.title());
-  const tocOk = await page.$$eval('.toc a', as => as.every(a => document.querySelector(a.getAttribute('href'))));
-  check('toc: 6 links all resolve', tocOk && (await page.$$eval('.toc a', a => a.length)) === 6);
+  const tocOk = await page.$$eval('.toc a[href^="#"]', as => as.every(a => document.querySelector(a.getAttribute('href'))));
+  check('toc: 6 chapter links all resolve', tocOk && (await page.$$eval('.toc a[href^="#"]', a => a.length)) === 6);
+  check('link to part 2 present', (await page.$$eval('.toc a[href^="https://claude.ai/artifact/"]', a => a.length)) === 1);
   check('all 8 ladders rendered as svg', (await page.$$eval('.ladder svg.ld', s => s.length)) === 8);
 
   console.log('\n== demo 1: scan loop ==');
