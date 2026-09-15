@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>表記の変換と構造の変換</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#f1f3f6; --panel:#ffffff; --panel2:#e9edf2; --ink:#1a2230; --muted:#5e6a79;
+  --line:#d4dae2; --line2:#e6eaef; --wire:#7a8594; --code-bg:#f6f8fa;
+  --on:#1b64d1; --on-soft:#dbe7fa; --on-ink:#0f4aa3;
+  --warn:#c4771a; --warn-soft:#fbeedc;
+  --c2:#7a5bc7; --c2-soft:#ece6f8;
+  --sans:"IBM Plex Sans JP","Hiragino Sans","Noto Sans JP","Yu Gothic",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1319; --panel:#151c25; --panel2:#1c2531; --ink:#e3e8ef; --muted:#93a0b1;
+    --line:#2b3644; --line2:#222c38; --wire:#6b7887; --code-bg:#0f151d;
+    --on:#5ea3ff; --on-soft:#17304f; --on-ink:#bfd8ff;
+    --warn:#e2a04a; --warn-soft:#3a2a12;
+    --c2:#b8a3ea; --c2-soft:#2c2445;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1319; --panel:#151c25; --panel2:#1c2531; --ink:#e3e8ef; --muted:#93a0b1;
+  --line:#2b3644; --line2:#222c38; --wire:#6b7887; --code-bg:#0f151d;
+  --on:#5ea3ff; --on-soft:#17304f; --on-ink:#bfd8ff;
+  --warn:#e2a04a; --warn-soft:#3a2a12;
+  --c2:#b8a3ea; --c2-soft:#2c2445;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15.5px;line-height:1.8;padding-inline:20px;padding-block:0 80px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:960px;margin:0 auto}
+h1,h2,h3{text-wrap:balance;line-height:1.35;margin:0}
+h1{font-size:clamp(26px,4vw,34px);font-weight:700;letter-spacing:-.01em}
+h2{font-size:22px;font-weight:700;display:flex;gap:14px;align-items:baseline}
+h2 .n{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--on);letter-spacing:.06em}
+h3{font-size:16.5px;font-weight:600;margin-top:26px}
+p{margin:10px 0}
+.prose{max-width:40em}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+.hero{padding-block:44px 8px;border-bottom:1px solid var(--line)}
+.lede{font-size:17px;color:var(--muted);max-width:40em;margin-top:12px}
+.links{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.links a,.toc a{font-size:13px;color:var(--ink);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:4px 12px;background:var(--panel)}
+.links a:hover,.toc a:hover{border-color:var(--on);color:var(--on-ink)}
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.toc a b{font-family:var(--mono);font-weight:500;color:var(--on);margin-right:6px}
+section.ch{padding-top:56px}
+.key{border-left:3px solid var(--on);background:var(--on-soft);padding:12px 16px;border-radius:0 8px 8px 0;margin:18px 0;max-width:46em}
+.key p{margin:4px 0}
+.key strong{color:var(--on-ink)}
+.note{border-left:3px solid var(--warn);background:var(--warn-soft);padding:12px 16px;border-radius:0 8px 8px 0;margin:18px 0;max-width:46em}
+.note p{margin:4px 0}
+code.inl{font-family:var(--mono);font-size:.92em;background:var(--code-bg);border:1px solid var(--line2);border-radius:4px;padding:0 5px}
+ul.pl{padding-left:1.3em;margin:8px 0}
+ul.pl li{margin:6px 0}
+ol.pl{padding-left:1.4em;margin:8px 0}
+ol.pl li{margin:6px 0}
+
+/* figures */
+.fig{margin:18px 0;padding:14px 14px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+.fig svg{display:block;width:100%;height:auto;max-width:100%}
+.fig figcaption{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.6}
+.fig figcaption b{color:var(--ink);font-weight:600}
+.fig.narrow{max-width:700px}
+.bx{fill:var(--panel2);stroke:var(--muted);stroke-width:1.2}
+.bx.tool{fill:var(--panel);stroke:var(--ink)}
+.bx.ghost{fill:none;stroke-dasharray:5 4}
+.bx.acc{fill:var(--on-soft);stroke:var(--on)}
+.bx.c2{fill:var(--c2-soft);stroke:var(--c2)}
+.bx.warn{fill:var(--warn-soft);stroke:var(--warn)}
+.bx.human{fill:var(--warn-soft);stroke:var(--warn)}
+.bx.llm{fill:var(--on);stroke:var(--on)}
+.bt{font:12px var(--sans);fill:var(--ink)}
+.bt.ghost{fill:var(--muted)}
+.bt.llm{fill:#fff;font-weight:600}
+.bt.sm{font-size:11px}
+.bt.xs2{font-size:10px}
+.bt.strike{fill:var(--muted);text-decoration:line-through}
+.bt.guess{fill:var(--warn)}
+.lb{font:11.5px var(--sans);fill:var(--muted)}
+.lb.b{fill:var(--ink);font-weight:600}
+.lb.warn{fill:var(--warn);font-weight:600}
+.mono{font:11px var(--mono);fill:var(--ink)}
+.mono.xs{font-size:8px}
+.ar{stroke:var(--ink);stroke-width:1.4;fill:none}
+.ar.dash{stroke-dasharray:5 4}
+.ar.warn{stroke:var(--warn)}
+.ar.thin{stroke:var(--wire);stroke-width:1;opacity:.8}
+.ar.thin.c2{stroke:var(--c2)}
+.ahf{fill:var(--ink)}
+.ahfw{fill:var(--warn)}
+.ahft{fill:var(--wire)}
+.wl{font:10.5px var(--mono);fill:var(--muted)}
+.wbase{stroke:var(--line);stroke-width:1}
+.wbit{fill:var(--on)}
+.wmark{fill:var(--warn)}
+.wcol{fill:var(--warn-soft)}
+.rl{stroke:var(--ink);stroke-width:2}
+.rw{stroke:var(--wire);stroke-width:1.4}
+.rb{stroke:var(--ink);stroke-width:1.6;fill:none}
+.rd{font:10px var(--mono);fill:var(--ink)}
+.hlrect{fill:var(--on-soft)}
+.rowbar{fill:var(--panel2)}
+.dotA{fill:var(--on)}
+.dotB{fill:var(--c2)}
+.lane{fill:var(--panel2);opacity:.45}
+.lane.b{fill:var(--on-soft);opacity:.7}
+.lane.c{fill:var(--warn-soft);opacity:.8}
+.node{fill:var(--panel);stroke:var(--ink);stroke-width:1.4}
+
+/* comparison table */
+.tblwrap{overflow-x:auto;margin-top:14px}
+table.tbl{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
+.tbl th,.tbl td{border-bottom:1px solid var(--line2);padding:9px 10px;text-align:left;vertical-align:top}
+.tbl th{font-weight:600;color:var(--muted);font-size:12.5px;letter-spacing:.04em;white-space:nowrap}
+.tbl td:first-child{color:var(--muted);white-space:nowrap}
+
+/* step cards */
+.steps{display:flex;flex-direction:column;gap:12px;margin-top:16px}
+.step{display:grid;grid-template-columns:340px minmax(0,1fr);gap:18px;border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--panel);align-items:start}
+@media (max-width:820px){.step{grid-template-columns:minmax(0,1fr)}}
+.sfig{background:var(--code-bg);border:1px solid var(--line2);border-radius:6px;padding:6px}
+.sfig svg{display:block;width:100%;height:auto}
+.step h3{margin:0;display:flex;gap:10px;align-items:baseline;font-size:16px}
+.step h3 .n{font-family:var(--mono);color:var(--on);font-size:13px;font-weight:500}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 4px}
+.chip{font-size:11.5px;line-height:1.6;padding:1px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:var(--panel)}
+.chip.tool{border-color:var(--ink);color:var(--ink)}
+.chip.llm{background:var(--on);border-color:var(--on);color:#fff}
+.chip.human{background:var(--warn-soft);border-color:var(--warn);color:var(--warn)}
+.chip.c{font-family:var(--mono)}
+.step p{margin:6px 0;font-size:14.5px}
+
+/* cards */
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}
+@media (max-width:760px){.cards{grid-template-columns:minmax(0,1fr)}}
+.card{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--panel)}
+.card h4{margin:0 0 6px;font-size:14.5px;font-weight:600}
+.card p{margin:0;font-size:14px;color:var(--muted)}
+.diff{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}
+@media (max-width:760px){.diff{grid-template-columns:minmax(0,1fr)}}
+.final{margin-top:40px;border-top:1px solid var(--line);padding-top:24px;font-size:18px;font-weight:600;max-width:40em;line-height:1.7}
+.final small{display:block;font-size:13px;font-weight:400;color:var(--muted);margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <p class="eyebrow">PLC / ラダー→ST 後編</p>
+  <h1>表記の変換と構造の変換</h1>
+  <p class="lede">ラダー→ST 変換を一段抽象化します。変換は2種類あること、なぜ片方だけ難しいのか、コンパイラとどう対応するか、そして AI でどこまで自動化できるか。</p>
+  <div class="links">
+    <a href="https://claude.ai/artifact/P4Q6nHvV5dL2ti4oheqiX8">前編: 動くシミュレータ</a>
+    <span class="chip">メモ: plc/ladder-to-st.md</span>
+  </div>
+  <nav class="toc" aria-label="目次">
+    <a href="#ch1"><b>1</b>2種類の変換</a>
+    <a href="#ch2"><b>2</b>表記の変換が簡単な理由</a>
+    <a href="#ch3"><b>3</b>構造の変換が難しい理由</a>
+    <a href="#ch4"><b>4</b>情報の非対称性</a>
+    <a href="#ch5"><b>5</b>コンパイラとの対応</a>
+    <a href="#ch6"><b>6</b>AI で自動化できるか</a>
+  </nav>
+</header>
+
+<!-- 1 -->
+<section class="ch" id="ch1">
+  <h2><span class="n">1</span>変換は2種類ある</h2>
+  <div class="prose">
+    <p>「ラダーを ST に変換する」と言うとき、実は別のことを2つ指しています。名詞をそろえると、こうなります。</p>
+    <ul class="pl">
+      <li><strong>表記の変換</strong>: 同じプログラムを、別の言語で書く。入力はラダーのプログラム、出力は ST のプログラム。振る舞いは変えない。</li>
+      <li><strong>構造の変換</strong>: 同じ仕様を満たす、別のプログラムを設計する。入力は本来「仕様」であるべきだが、手元にあるのはラダーのプログラムだけ。</li>
+    </ul>
+  </div>
+  <figure class="fig" data-fig="paths"><figcaption><b>2つの経路。</b>表記の変換は横に一直線。構造の変換は、手元にない「仕様」をいちど復元してから ST を設計する遠回り。点線が「推定で埋める区間」。</figcaption></figure>
+</section>
+
+<!-- 2 -->
+<section class="ch" id="ch2">
+  <h2><span class="n">2</span>表記の変換が簡単な理由</h2>
+  <div class="prose">
+    <p>ラダーと ST は、実行モデルが同じ「周期スキャン」で、基本命令も同じ「ブール変数の読み書きと AND / OR / NOT」です。だから対応関係に次の3つの性質があります。</p>
+    <ol class="pl">
+      <li><strong>一対一</strong>: 1ラングが1つの代入文に対応する。余りも不足もない。</li>
+      <li><strong>局所的</strong>: あるラングを変換するのに、そのラングの中の情報しか要らない。前後のラングを読む必要がない。</li>
+      <li><strong>意味を保つ</strong>: ラングの順番を守って並べれば、振る舞いは元と完全に一致する。</li>
+    </ol>
+    <p>この3つがそろう変換は、機械的に実行でき、結果の正しさも構成から保証されます。だから自動化できます。</p>
+  </div>
+  <figure class="fig" data-fig="oneToOne"><figcaption><b>一対一で、局所的。</b>左のラングと右の代入文が1本ずつ対応する。2本目を変換するのに必要な情報は、青い枠の中にしかない。</figcaption></figure>
+  <div class="key">
+    <p><strong>「順序が意味を持つ」は、表記の変換では問題になりません。</strong>ST も上から下に実行されるので、ラングの順番どおりに代入文を並べれば、「同じスキャンで読むか、前のスキャンで読むか」もそのまま保たれます。順序が問題になるのは、次の章で見る構造の変換で順番を組み替えたときだけです。</p>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="ch" id="ch3">
+  <h2><span class="n">3</span>構造の変換が難しい理由</h2>
+  <div class="prose">
+    <p>根本原因は1つです。<strong>必要な情報が、入力に含まれていない。</strong></p>
+    <p>構造の変換に必要なのは「どんな状態があるか」「どの変数がどの機構に属するか」「どのタイミングが意図されたものか」という設計意図です。ラダーには振る舞いしか書かれていません。設計意図を振る舞いから取り戻す作業は、翻訳ではなく推定です。この根本原因から、4つの困難が派生します。</p>
+  </div>
+
+  <h3>困難 1: 多対一なので、逆算が一意に決まらない</h3>
+  <p class="prose">異なる設計が、同じラダーになりえます。あるビットは工程かもしれないし、インタロックかもしれないし、単なるフラグかもしれない。設計からラダーへの写像は情報を捨てているので、逆写像は関数になりません。候補から1つを選ぶ判断が必要になります。</p>
+  <figure class="fig" data-fig="manyToOne"><figcaption><b>多対一。</b>3つの異なる設計が、同じ自己保持ラングになる。ラングだけを見て「どれだったか」は決められない。</figcaption></figure>
+
+  <h3>困難 2: 状態が大域に散っている</h3>
+  <p class="prose">1つの機構の状態は複数のラングにまたがり、1つのラングは複数の機構に関わります。だからラング単位では処理できず、プログラム全体を読まないと1つの機構も切り出せません。</p>
+  <figure class="fig" data-fig="scattered"><figcaption><b>大域に散る。</b>機構 A のビットは 1、4、5、7、9 行目、機構 B は 2、5、6、10 行目。5 行目は両方に関わる。表記の変換のように「1行ずつ」では進められない。</figcaption></figure>
+
+  <h3>困難 3: 順序が意味を持つ</h3>
+  <p class="prose">ラダーの振る舞いはラングの順番に依存します。構造を変えると実行順が変わり、振る舞いも変わります。つまり構造の変換は、意味を保つ変換ではありません。「どこまでの差なら等価と見なすか」を定義し、変換後に検証する必要があります。</p>
+  <figure class="fig" data-fig="order"><figcaption><b>順番が変わると、タイミングが変わる。</b>同じ2本のラングでも、読む側を先に置くと Y0 の立ち上がりが1スキャン遅れる。前編の第5章で実際に動かせる。</figcaption></figure>
+
+  <h3>困難 4: 意図と偶然の区別が、コードに書かれていない</h3>
+  <p class="prose">1スキャンの遅れが意図か偶然かは、振る舞いを見ても分かりません。守るべきものだけを守るには、何が仕様なのかを人が決める必要があります。仕様がないことが問題なのに、その仕様を作る作業自体が構造の変換に含まれてしまう。ここが工数の正体です。</p>
+  <figure class="fig" data-fig="intent"><figcaption><b>意図か、偶然か。</b>クランプが切れてから後退が始まるまでの1スキャンの空白。「開くのを待つ設計」なのか「書いた順番の副産物」なのか、波形からは判別できない。</figcaption></figure>
+</section>
+
+<!-- 4 -->
+<section class="ch" id="ch4">
+  <h2><span class="n">4</span>一段抽象化する: 情報の非対称性</h2>
+  <div class="prose">
+    <p>表記の変換は「情報を保つ変換」、構造の変換は「失われた情報を取り戻す作業」です。<strong>情報は機械的に捨てられるが、機械的には戻らない。</strong>この非対称性が、簡単さと難しさの差そのものです。</p>
+  </div>
+  <figure class="fig" data-fig="info"><figcaption><b>捨てるのは機械的、取り戻すのは推定。</b>設計にあった「状態の名前」「機構の境界」「意図したタイミング」は、ラダーになった時点で消えている。ST の設計側では「?」付きで推定するしかない。</figcaption></figure>
+  <div class="tblwrap"><table class="tbl">
+    <thead><tr><th></th><th>表記の変換</th><th>構造の変換</th></tr></thead>
+    <tbody>
+      <tr><td>入力と出力</td><td>同じプログラム、別の言語</td><td>同じ仕様、別のプログラム</td></tr>
+      <tr><td>対応関係</td><td>一対一、局所的</td><td>多対一、大域的</td></tr>
+      <tr><td>振る舞い</td><td>完全に一致</td><td>変わりうる。等価性の定義と検証が必要</td></tr>
+      <tr><td>必要な情報</td><td>入力に全部ある</td><td>入力にない。推定と判断で補う</td></tr>
+      <tr><td>性質</td><td>翻訳</td><td>逆解析と再設計</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- 5 -->
+<section class="ch" id="ch5">
+  <h2><span class="n">5</span>コンパイラとの対応</h2>
+  <div class="prose">
+    <p>同じ話です。対応させると、こうなります。</p>
+    <ul class="pl">
+      <li><strong>表記の変換 = トランスパイル。</strong>TypeScript から JavaScript、Java から Kotlin の自動変換と同じ。同じ抽象度の言語の間を、意味を保って移す。構文解析して、別の構文で出力するだけ。</li>
+      <li><strong>構造の変換 = 逆コンパイル + 再設計。</strong>機械語から C を復元する作業と同じ。コンパイルは設計から実装に降りる過程で、名前と構造を捨てる。逆コンパイルはその捨てた情報を推定で埋める。だから逆コンパイラは「動く C」は出せるが、「元の設計者が書いた C」は出せない。</li>
+    </ul>
+  </div>
+  <figure class="fig" data-fig="compiler"><figcaption><b>同じ形の図になる。</b>下向きの矢印が情報を捨てる方向、横向きが表記の変換、点線の斜め上向きが構造の変換。</figcaption></figure>
+  <div class="prose">
+    <p>ラダーが機械語より厄介な点が1つあります。機械語はコンパイラという機械が生成したので、パターンが規則的で、逆コンパイラはその規則を利用できます。ラダーは人が直接書いた低水準コードなので、パターンが書いた人ごとに違います。</p>
+    <p>逆に有利な点もあります。機械語にはコメントもデバイス名もないが、ラダーには「前進端」「起動ボタン」という名前が残っている。構造の変換で AI が本当に効くのは、この名前を読む部分です。</p>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="ch" id="ch6">
+  <h2><span class="n">6</span>AI で自動化できるか</h2>
+  <div class="key">
+    <p><strong>結論: 工程を分けて考えれば大半は自動化でき、最後の判断だけが残る。</strong>プロンプトの工夫は決め手ではありません。決め手は「決定的な道具」「検証器」「入力データの質」の3つです。</p>
+  </div>
+  <figure class="fig" data-fig="lanes"><figcaption><b>7つの工程を、担い手ごとのレーンに置いた全体図。</b>太い流れは 1 → 7。LLM が入るのは 3 の曖昧な部分、4、5 の質問づくり、6 だけ。判断は人、正しさの保証は 7 の道具。7 で差分が出れば 6 に戻る。</figcaption></figure>
+
+  <div class="steps" id="steps">
+    <article class="step">
+      <div class="sfig" data-sfig="1"></div>
+      <div>
+        <h3><span class="n">1</span>表記の変換</h3>
+        <div class="chips"><span class="chip tool">決定的な道具</span><span class="chip c">確からしさ: 完全</span></div>
+        <p>ラングを代入文に置き換える。パーサと生成器で済み、判断はどこにも無い。<strong>AI は不要</strong>。前編のシミュレータでは 20 行の JavaScript がこれをやっている。</p>
+      </div>
+    </article>
+    <article class="step">
+      <div class="sfig" data-sfig="2"></div>
+      <div>
+        <h3><span class="n">2</span>静的解析</h3>
+        <div class="chips"><span class="chip tool">アルゴリズム</span><span class="chip c">確からしさ: 高い</span></div>
+        <p>どの変数を誰が読み、誰が書くかのグラフを作る。自己保持、SET / RST の対、パルス、タイマ、比較接点といったパターンを検出する。決定的なアルゴリズムで、<strong>AI は不要</strong>。</p>
+      </div>
+    </article>
+    <article class="step">
+      <div class="sfig" data-sfig="3"></div>
+      <div>
+        <h3><span class="n">3</span>状態機械の候補抽出</h3>
+        <div class="chips"><span class="chip tool">グラフ解析 + 実機ログ</span><span class="chip llm">曖昧な組だけ LLM</span><span class="chip c">確からしさ: 候補は出る</span></div>
+        <p>排他的に ON になるビット群を探し、鎖状につながっていれば工程の候補とする。静的解析だけでは決まらないので、実機のデバイスログで「同時に ON にならない」ことを裏取りする。候補は出るが、確定はしない。</p>
+      </div>
+    </article>
+    <article class="step">
+      <div class="sfig" data-sfig="4"></div>
+      <div>
+        <h3><span class="n">4</span>機構への分割と命名</h3>
+        <div class="chips"><span class="chip llm">LLM が得意</span><span class="chip c">確からしさ: 推定。レビュー必須</span></div>
+        <p>「前進SOL、後退SOL、前進端、後退端の4つはシリンダ1つ」と束ねる。コメント、I/O 名、HMI のタグを読んで型合わせをする作業で、<strong>ここが LLM の本領</strong>。ただし推定なので、人のレビューが要る。</p>
+      </div>
+    </article>
+    <article class="step">
+      <div class="sfig" data-sfig="5"></div>
+      <div>
+        <h3><span class="n">5</span>意図と偶然の判別</h3>
+        <div class="chips"><span class="chip human">人が決める</span><span class="chip llm">LLM は質問を整える</span><span class="chip c">自動化できない</span></div>
+        <p>「この1スキャンの遅れは守るべき仕様か」。入力に無い情報なので、<strong>原理的に自動化できない</strong>。LLM ができるのは、論点を質問の形に整理して人に渡すこと。人の作業を「全部読んで判断する」から「質問に答えて承認する」に縮めるのが現実的なゴール。</p>
+      </div>
+    </article>
+    <article class="step">
+      <div class="sfig" data-sfig="6"></div>
+      <div>
+        <h3><span class="n">6</span>ST の生成</h3>
+        <div class="chips"><span class="chip llm">LLM でよい</span><span class="chip c">確からしさ: 高い</span></div>
+        <p>レビュー済みの状態遷移表から、固定の骨格テンプレートに CASE 文を流し込む。<strong>骨格が決まっているから検図ルールが書ける</strong>。自由に書かせるのではなく、穴を埋めさせる。</p>
+      </div>
+    </article>
+    <article class="step">
+      <div class="sfig" data-sfig="7"></div>
+      <div>
+        <h3><span class="n">7</span>等価性の検証</h3>
+        <div class="chips"><span class="chip tool">シミュレータ</span><span class="chip c">確からしさ: 決定的</span></div>
+        <p>記録した I/O 波形をラダー版と ST 版の両方に流し、出力の差分を見る。「1スキャン差は許容」のようなルールをここで定義する。<strong>AI は不要</strong>。そして、この検証器があるかどうかで AI が使えるかが決まる。</p>
+      </div>
+    </article>
+  </div>
+
+  <h3>ここから読み取れること</h3>
+  <ul class="pl prose">
+    <li><strong>AI を使う場所は 4 と 6、それと 3 の曖昧な部分だけ。</strong>1、2、7 は決定的な道具で作るべきで、LLM に任せると正しさが落ちる。</li>
+    <li><strong>7 の検証器があるかどうかで、AI が使えるかが決まる。</strong>エージェントによるコーディングが成立するのはテストがあるからで、ここでの「テスト」が等価性検証。検証器があれば、生成 → 検証 → 修正のループが回り、AI の間違いは機械が捕まえる。検証器がなければ、AI の出力は「それらしい提案」以上にはならない。</li>
+    <li><strong>5 は原理的に自動化できない。</strong>入力に無い情報だから。AI に頼めるのは、判断材料を質問の形に整えることまで。</li>
+  </ul>
+
+  <h3>AI 特有の失敗のしかた</h3>
+  <p class="prose">LLM は、きれいな状態機械を作るために、インタロックを1本落とすことがあります。見た目は正しく、読みやすく、動きも大体合う。検証で初めてばれる。だから非常停止やインタロックのような安全に関わる部分は、構造の変換をかけず、表記の変換のまま残す方針が要ります。</p>
+  <figure class="fig" data-fig="failure"><figcaption><b>落ちたインタロック。</b>上が元のラダーの振る舞い、下が LLM が整理した ST。工程の流れは同じで、どの状態からも IDLE に戻る非常停止の経路だけが消えている。見て気づくのは難しく、検証器が差分として捕まえる。</figcaption></figure>
+
+  <h3>成否を分けるもの</h3>
+  <p class="prose">プロンプトより先に、次の3つを揃えることです。</p>
+  <div class="cards">
+    <div class="card"><h4>入力の質</h4><p>コメント、I/O 一覧、デバイスの命名規則、HMI 画面のタグ定義、アラーム一覧。特に HMI のタグは「状態の名前」がすでに書かれている貴重な情報源。</p></div>
+    <div class="card"><h4>検証器</h4><p>ラダーと ST を同じ入力で走らせる環境と、実機から記録した I/O 波形。1スキャン差を許容するルールもここで定義する。</p></div>
+    <div class="card"><h4>作業単位</h4><p>設備全体ではなく、機構1つずつ。コンテキストが収まり、間違いの影響範囲が閉じる。</p></div>
+  </div>
+
+  <p class="final">ベンダーのツールが提供しているのは今も表記の変換までで、構造の変換を自動でやるものはない。<br>それは技術が足りないからではなく、入力に情報が無いから。<br>AI が変えるのは「推定の質」と「人が読む量」で、「情報が無い」という事実は変わらない。
+    <small>前編のシミュレータでは、表記の変換をコードで自動生成し、構造の変換の結果である状態機械を同じ入力で並走させて、1スキャン差が出ることを確かめられます。</small>
+  </p>
+</section>
+</div>
+
+<script>
+(function(){
+'use strict';
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+/* ---- tiny diagram helpers ---- */
+function svg(id,w,h,body,label){
+  return `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(label)}"><defs>`+
+    `<marker id="${id}-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ahf"/></marker>`+
+    `<marker id="${id}-ahw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ahfw"/></marker>`+
+    `<marker id="${id}-aht" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ahft"/></marker>`+
+    `</defs>${body}</svg>`;
+}
+function box(x,y,w,h,text,cls=''){
+  const lines=[].concat(text).filter(t=>t!==''),lh=15,y0=y+h/2-(lines.length-1)*lh/2;
+  return `<rect class="bx ${cls}" x="${x}" y="${y}" width="${w}" height="${h}" rx="6"/>`+
+    lines.map((t,i)=>`<text class="bt ${cls}" x="${x+w/2}" y="${y0+i*lh}" text-anchor="middle" dominant-baseline="middle">${esc(t)}</text>`).join('');
+}
+function arrow(x1,y1,x2,y2,id,o={}){
+  const cls='ar'+(o.dashed?' dash':'')+(o.warn?' warn':'')+(o.thin?' thin':'');
+  const m=o.warn?`${id}-ahw`:o.thin?`${id}-aht`:`${id}-ah`;
+  return `<path class="${cls}" d="${o.d||`M${x1} ${y1} L${x2} ${y2}`}" marker-end="url(#${m})"/>`;
+}
+function label(x,y,t,cls='lb',anchor='middle'){return `<text class="${cls}" x="${x}" y="${y}" text-anchor="${anchor}">${esc(t)}</text>`;}
+function wave(x,y,rows,n,cw=14,rh=22,o={}){
+  let s='';
+  (o.cols||[]).forEach(c=>{s+=`<rect class="wcol" x="${x+c*cw}" y="${y-2}" width="${cw}" height="${rows.length*rh+2}"/>`;});
+  rows.forEach((r,ri)=>{const yy=y+ri*rh;
+    s+=label(x-6,yy+rh/2+4,r.name,'wl','end');
+    s+=`<line class="wbase" x1="${x}" y1="${yy+rh-5}" x2="${x+n*cw}" y2="${yy+rh-5}"/>`;
+    for(let i=0;i<n;i++)if(r.bits[i]==='1')s+=`<rect class="wbit" x="${x+i*cw}" y="${yy+3}" width="${cw-1}" height="${rh-9}"/>`;
+  });
+  (o.marks||[]).forEach(m=>{s+=`<rect class="wmark" x="${x+m.i*cw}" y="${y+rows.length*rh-3}" width="${cw-1}" height="3"/>`;});
+  return s;
+}
+function rungG(x,y,w,contacts,coil){
+  let s=`<line class="rl" x1="${x}" y1="${y-14}" x2="${x}" y2="${y+14}"/>`;
+  const cw=44;let cx=x;
+  s+=`<line class="rw" x1="${cx}" y1="${y}" x2="${cx+10}" y2="${y}"/>`;cx+=10;
+  contacts.forEach(c=>{
+    s+=`<line class="rw" x1="${cx}" y1="${y}" x2="${cx+14}" y2="${y}"/><line class="rb" x1="${cx+14}" y1="${y-8}" x2="${cx+14}" y2="${y+8}"/><line class="rb" x1="${cx+26}" y1="${y-8}" x2="${cx+26}" y2="${y+8}"/>`;
+    if(c.nc)s+=`<line class="rb" x1="${cx+16}" y1="${y+7}" x2="${cx+24}" y2="${y-7}"/>`;
+    s+=`<line class="rw" x1="${cx+26}" y1="${y}" x2="${cx+cw}" y2="${y}"/>`;
+    if(c.d)s+=label(cx+20,y-12,c.d,'rd');
+    cx+=cw;
+  });
+  const coilX=x+w-40;
+  s+=`<line class="rw" x1="${cx}" y1="${y}" x2="${coilX+8}" y2="${y}"/>`;
+  s+=`<path class="rb" d="M${coilX+12} ${y-8} A 9 9 0 0 0 ${coilX+12} ${y+8}"/><path class="rb" d="M${coilX+20} ${y-8} A 9 9 0 0 1 ${coilX+20} ${y+8}"/>`;
+  s+=`<line class="rw" x1="${coilX+24}" y1="${y}" x2="${x+w}" y2="${y}"/>`;
+  if(coil)s+=label(coilX+16,y-12,coil,'rd');
+  s+=`<line class="rl" x1="${x+w}" y1="${y-14}" x2="${x+w}" y2="${y+14}"/>`;
+  return s;
+}
+
+/* ---- section figures ---- */
+const F={};
+F.paths=()=>{const id='f1';let s='';
+  s+=box(30,160,180,54,'ラダーのプログラム','tool');
+  s+=box(450,160,180,54,'ST のプログラム','tool');
+  s+=box(240,30,180,54,['仕様（設計意図）','手元にない'],'ghost');
+  s+=arrow(212,187,448,187,id);
+  s+=label(330,172,'表記の変換','lb b');
+  s+=label(330,210,'同じプログラムを、別の言語で書く');
+  s+=arrow(120,158,246,86,id,{dashed:true});
+  s+=label(150,118,'逆解析（推定）','lb','end');
+  s+=arrow(414,86,540,158,id);
+  s+=label(505,118,'設計','lb','start');
+  s+=label(330,242,'構造の変換 = 手元にない仕様を経由する遠回り','lb b');
+  return svg(id,660,252,s,'表記の変換はラダーから ST へ横に一直線。構造の変換は手元にない仕様を推定で復元してから ST を設計する遠回り');
+};
+F.oneToOne=()=>{const id='f2';let s='';
+  const R=[[[{d:'X0'},{d:'X1',nc:true}],'Y0','Y0 := X0 AND NOT X1;'],[[{d:'M100'},{d:'X2'}],'M101','M101 := M100 AND X2;'],[[{d:'X3'}],'Y1','Y1 := X3;'],[[{d:'M101',nc:true},{d:'X4'}],'Y2','Y2 := NOT M101 AND X4;']];
+  s+=`<rect class="hlrect" x="16" y="72" width="628" height="46" rx="6"/>`;
+  R.forEach((r,i)=>{const y=50+i*48;s+=rungG(30,y,230,r[0],r[1]);s+=arrow(275,y,318,y,id);s+=`<text class="mono" x="330" y="${y+4}">${esc(r[2])}</text>`;});
+  s+=label(330,236,'ラングを1つ変換するのに必要な情報は、そのラングの枠の中にしかない','lb');
+  return svg(id,660,248,s,'4本のラングが4つの代入文に一対一で対応し、2本目の変換に必要な情報はその行の中だけ');
+};
+F.manyToOne=()=>{const id='f3a';let s='';
+  [[20,'工程を表すビット'],[85,'インタロック'],[150,'ただのフラグ']].forEach(([y,t])=>{s+=box(30,y,160,40,t,'tool');s+=arrow(192,y+20,296,105,id);});
+  s+=box(300,70,210,70,'','acc');s+=label(405,88,'同じラダー','lb b');s+=rungG(318,114,174,[{d:'X3'},{d:'X4',nc:true}],'M105');
+  s+=label(245,12,'設計 → 実装：情報を捨てる','lb');
+  s+=arrow(512,105,556,105,id,{dashed:true});
+  s+=box(560,85,80,40,'どれ？','ghost');
+  s+=label(580,152,'逆写像は一意に決まらない','lb');
+  s+=label(580,170,'候補から選ぶ判断が要る','lb b');
+  return svg(id,660,200,s,'3つの異なる設計が同じ自己保持ラングになる。逆向きに戻すときは候補から選ぶ判断が要る');
+};
+F.scattered=()=>{const id='f3b';let s='';const A=[0,3,4,6,8],B=[1,4,5,9];
+  for(let i=0;i<10;i++){const y=22+i*21;
+    s+=label(84,y+11,'ラング '+(i+1),'wl','end');
+    s+=`<rect class="rowbar" x="92" y="${y+2}" width="230" height="13" rx="2"/>`;
+    if(A.includes(i)){s+=`<rect class="dotA" x="100" y="${y+3}" width="11" height="11" rx="2"/>`;s+=`<line class="ar thin" x1="322" y1="${y+8}" x2="410" y2="72"/>`;}
+    if(B.includes(i)){s+=`<rect class="dotB" x="${A.includes(i)?116:100}" y="${y+3}" width="11" height="11" rx="2"/>`;s+=`<line class="ar thin c2" x1="322" y1="${y+8}" x2="410" y2="172"/>`;}
+  }
+  s+=box(410,50,200,44,'機構 A（シリンダ）','acc');s+=box(410,150,200,44,'機構 B（搬送）','c2');
+  s+=label(330,250,'1つの機構の状態は離れた行にまたがる。ラング 5 は2つの機構に関わる','lb');
+  return svg(id,660,262,s,'10本のラングのうち機構Aのビットは1,4,5,7,9行目、機構Bは2,5,6,10行目に散らばり、5行目は両方に関わる');
+};
+F.order=()=>{const id='f3c';let s='';
+  s+=label(134,16,'順番 A → B（書いてから読む）','lb b');
+  s+=wave(70,28,[{name:'X0',bits:'00111111'},{name:'M1',bits:'00111111'},{name:'Y0',bits:'00111111'}],8,16,22);
+  s+=label(70+2*16+8,114,'X0 が ON','lb');
+  s+=label(454,16,'順番 B → A（読んでから書く）','lb b');
+  s+=wave(390,28,[{name:'X0',bits:'00111111'},{name:'M1',bits:'00111111'},{name:'Y0',bits:'00011111'}],8,16,22,{marks:[{i:2}]});
+  s+=label(390+2*16+8,114,'X0 が ON','lb');s+=label(390+3*16+8,130,'Y0 は1スキャン遅れる','lb warn');
+  s+=label(330,156,'同じ2本のラングでも、順番を入れ替えると Y0 の立ち上がりが1スキャンずれる','lb');
+  return svg(id,660,168,s,'ラングの順番を入れ替えると出力 Y0 の立ち上がりが1スキャン遅れる');
+};
+F.intent=()=>{const id='f3d';let s='';
+  s+=wave(90,30,[{name:'Y2 クランプ',bits:'11111000000'},{name:'Y1 後退',bits:'00000011111'}],11,14,24,{cols:[5]});
+  s+=label(90+5*14+7,102,'1スキャンの空白','lb warn');
+  s+=box(330,24,300,40,'意図: クランプが開くのを待つための遅れ','ghost');
+  s+=box(330,84,300,40,'偶然: ラングを書いた順番がそうだっただけ','ghost');
+  s+=arrow(167,32,328,44,id,{dashed:true});s+=arrow(167,80,328,104,id,{dashed:true});
+  s+=label(292,72,'？','lb b');
+  s+=label(330,152,'どちらなのかは、振る舞いを見ても分からない。決めるのは人','lb');
+  return svg(id,660,164,s,'クランプが切れてから後退が始まるまでの1スキャンの空白が意図か偶然か、波形からは判別できない');
+};
+F.info=()=>{const id='f4';let s='';
+  const col=(x,title,items,cls)=>{s+=box(x,30,190,150,'','tool');s+=label(x+95,54,title,'lb b');items.forEach((t,i)=>{s+=`<text class="bt ${cls[i]||''}" x="${x+20}" y="${80+i*24}">${esc(t)}</text>`;});};
+  col(20,'設計（頭の中）',['状態の名前','機構の境界','意図したタイミング','振る舞い'],[]);
+  col(245,'ラダー',['状態の名前','機構の境界','意図したタイミング','振る舞い'],['strike','strike','strike','']);
+  col(470,'ST の設計',['状態の名前 ?','機構の境界 ?','意図したタイミング ?','振る舞い'],['guess','guess','guess','']);
+  s+=arrow(212,105,243,105,id);s+=label(227,20,'捨てる（機械的）','lb');
+  s+=arrow(437,105,468,105,id,{dashed:true});s+=label(452,20,'取り戻す（推定）','lb');
+  s+=label(340,208,'JavaScript で言えば、圧縮されたコードを整形するのが表記の変換。','lb');
+  s+=label(340,226,'元の変数名とモジュール構造を復元するのが構造の変換。ソースマップに当たるのが仕様書。','lb');
+  return svg(id,680,238,s,'設計にあった名前・境界・意図はラダーになる時に消え、ST の設計側では推定するしかない');
+};
+F.compiler=()=>{const id='f5';let s='';
+  const panel=(x,title,TL,BL,BR,TR,eDown,eRight,eDiag)=>{
+    s+=label(x+160,18,title,'lb b');
+    s+=box(x+10,36,124,44,TL,'tool');s+=box(x+10,166,124,44,BL,'tool');s+=box(x+186,166,124,44,BR,'tool');s+=box(x+186,36,124,44,TR,'acc');
+    s+=arrow(x+72,82,x+72,164,id);s+=label(x+64,128,eDown,'lb','end');
+    s+=arrow(x+136,188,x+184,188,id);s+=label(x+160,228,eRight,'lb');
+    s+=arrow(x+136,166,x+186,84,id,{dashed:true});s+=label(x+196,134,eDiag,'lb','start');
+  };
+  panel(20,'一般のソフトウェア','C のソース','機械語','別の機械語','復元された C','コンパイル','バイナリ変換','逆コンパイル');
+  panel(350,'PLC','設計（頭の中）','ラダー','ST 直訳','状態機械の ST','人が書く','表記の変換','構造の変換');
+  s+=label(340,254,'同じ形。違いは、機械語は機械が作ったので規則的、ラダーは人が書いたので癖がある。','lb');
+  s+=label(340,272,'代わりにラダーには「前進端」「起動ボタン」という名前が残っている。AI が効くのはそこ。','lb');
+  return svg(id,680,284,s,'一般のソフトウェアと PLC で、設計から実装へ降りる矢印、同じ抽象度の横の変換、点線の逆向き変換が同じ形になる');
+};
+F.lanes=()=>{const id='f6';let s='';
+  [[30,'決定的な道具',''],[110,'LLM','b'],[190,'人','c']].forEach(([y,t,c])=>{s+=`<rect class="lane ${c}" x="0" y="${y}" width="790" height="80"/>`;s+=label(12,y+44,t,'lb b','start');});
+  const cx=i=>150+(i-1)*98,ly={t:70,l:150,h:230},pos={};
+  [[1,'t','表記の変換','tool'],[2,'t','静的解析','tool'],[3,'t','状態機械の候補','tool'],[4,'l','機構分割と命名','llm'],[5,'h','意図の判定','human'],[6,'l','ST 生成','llm'],[7,'t','等価性検証','tool']]
+    .forEach(([n,ln,t,c])=>{const x=cx(n),y=ly[ln];pos[n]={x,y};s+=box(x-45,y-24,90,48,[String(n),t],c+' sm');});
+  s+=box(cx(3)-45,ly.l-15,90,30,'曖昧な組を判定','llm sm');s+=arrow(cx(3),ly.t+26,cx(3),ly.l-17,id,{dashed:true});
+  s+=box(cx(5)-45,ly.l-15,90,30,'質問を整理','llm sm');
+  const link=(a,b,lab)=>{const A=pos[a],B=pos[b];s+=arrow(A.x+47,A.y,B.x-47,B.y,id);if(lab)s+=label((A.x+B.x)/2,(A.y+B.y)/2-8,lab,'lb b');};
+  link(1,2);link(2,3);link(3,4);
+  s+=arrow(cx(4)+47,ly.l,cx(5)-47,ly.l,id);s+=arrow(cx(5),ly.l+17,cx(5),ly.h-26,id);
+  link(5,6,'承認');link(6,7);
+  s+=arrow(0,0,0,0,id,{dashed:true,d:`M ${cx(7)} ${ly.t+26} C ${cx(7)} ${ly.l+12}, ${cx(6)+94} ${ly.l+12}, ${cx(6)+49} ${ly.l+4}`});
+  s+=label(cx(7)-8,ly.l+36,'差分があれば修正','lb');
+  return svg(id,790,282,s,'7つの工程を、決定的な道具・LLM・人の3レーンに配置した全体図');
+};
+F.failure=()=>{const id='f7';let s='';
+  const row=(y,title,warn)=>{
+    s+=label(20,y-52,title,'lb b','start');
+    const xs=[90,200,310,420],names=['IDLE','FWD','CLAMP','BWD'];
+    xs.forEach((x,i)=>{s+=`<circle class="node" cx="${x}" cy="${y}" r="22"/><text class="mono" x="${x}" y="${y+4}" text-anchor="middle">${names[i]}</text>`;if(i<3)s+=arrow(x+24,y,xs[i+1]-24,y,id);});
+    s+=arrow(0,0,0,0,id,{d:`M 420 ${y+24} Q 255 ${y+72} 92 ${y+26}`});
+    s+=`<line class="ar${warn?' warn dash':''}" x1="70" y1="${y-38}" x2="440" y2="${y-38}"/>`;
+    xs.forEach(x=>{s+=arrow(x,y-38,x,y-26,id,{warn});});
+    s+=label(255,y-44,warn?'落ちたインタロック':'非常停止: どの状態からも IDLE へ','lb'+(warn?' warn':''));
+  };
+  row(78,'元のラダーの振る舞い',false);
+  row(190,'LLM が書いた ST',true);
+  s+=box(530,160,130,48,['見た目も動きも','ほぼ正しい'],'ghost sm');
+  s+=box(530,224,130,40,'検証器が差分を検出','warn sm');
+  s+=arrow(446,184,528,184,id);s+=arrow(595,210,595,222,id,{warn:true});
+  return svg(id,680,276,s,'元のラダーにあった非常停止の経路が、LLM の書いた ST では落ちている。検証器が差分として検出する');
+};
+
+/* ---- step figures ---- */
+const S={};
+S[1]=()=>{const id='s1';let s='';
+  s+=label(85,22,'ラング','lb');s+=rungG(15,60,140,[{d:'X0'},{d:'X1',nc:true}],'Y0');
+  s+=arrow(162,60,186,60,id);s+=label(258,22,'代入文','lb');
+  s+=`<text class="mono" x="192" y="64">Y0 := X0 AND NOT X1;</text>`;
+  s+=label(170,132,'パーサと生成器。判断はどこにも無い','lb');
+  return svg(id,340,150,s,'ラングを代入文へ機械的に置き換える');};
+S[2]=()=>{const id='s2';let s='';
+  const node=(x,y,t)=>`<circle class="node" cx="${x}" cy="${y}" r="17"/><text class="mono" x="${x}" y="${y+4}" text-anchor="middle">${t}</text>`;
+  s+=node(45,66,'X0');s+=node(150,66,'M101');s+=node(150,128,'M102');s+=node(270,66,'Y0');
+  s+=arrow(62,66,131,66,id);s+=label(96,58,'読む','lb');
+  s+=arrow(167,66,251,66,id);s+=label(209,58,'書く','lb');
+  s+=arrow(150,110,150,85,id,{dashed:true});s+=label(160,102,'NOT','lb','start');
+  s+=arrow(0,0,0,0,id,{d:'M 160 52 C 185 14, 115 14, 140 52'});s+=label(150,18,'自己保持','lb');
+  s+=label(330,142,'変数の読み書きグラフ','lb','end');
+  return svg(id,340,150,s,'変数の読み書きをグラフにし、自己保持などのパターンを検出する');};
+S[3]=()=>{const id='s3';let s='';
+  s+=wave(70,26,[{name:'M101',bits:'1110000000'},{name:'M102',bits:'0001111000'},{name:'M103',bits:'0000000111'}],10,14,22);
+  s+=`<path class="ar" d="M 216 28 H 224 V 90 H 216"/>`;
+  s+=label(232,52,'同時に ON に','lb','start');s+=label(232,68,'ならない','lb','start');s+=label(232,90,'→ 状態機械の候補','lb b','start');
+  s+=label(70,130,'実機ログで裏取り ✓','lb','start');
+  return svg(id,340,150,s,'同時に ON にならないビット群を状態機械の候補として抽出し、実機ログで裏取りする');};
+S[4]=()=>{const id='s4';let s='';
+  [['Y0 前進SOL',18],['Y1 後退SOL',50],['X2 前進端',82],['X3 後退端',114]].forEach(([t,y])=>{s+=`<rect class="bx tool" x="12" y="${y}" width="112" height="24" rx="4"/><text class="mono" x="20" y="${y+16}">${esc(t)}</text>`;s+=arrow(124,y+12,166,78,id,{thin:true});});
+  s+=box(168,56,58,44,'LLM','llm');s+=arrow(226,78,252,78,id);
+  s+=box(254,36,80,84,['FB_Cylinder','シリンダ 1'],'acc sm');
+  s+=label(170,146,'コメントと I/O 名から「同じ機構」を束ねる','lb');
+  return svg(id,340,152,s,'4つのデバイスをコメントと I/O 名から1つのシリンダ FB に束ねる');};
+S[5]=()=>{const id='s5';let s='';
+  s+=wave(60,24,[{name:'Y2',bits:'1111100000'},{name:'Y1',bits:'0000001111'}],10,12,22,{cols:[5]});
+  s+=label(60+5*12+6,86,'1スキャンの空白','lb warn');
+  s+=box(190,14,140,46,['この遅れは、','守るべき仕様ですか？'],'ghost sm');
+  s+=arrow(126,72,188,58,id,{dashed:true});
+  s+=`<circle class="node" cx="232" cy="96" r="7"/><path class="ar" d="M 232 103 V 122 M 220 110 H 244 M 232 122 L 224 138 M 232 122 L 240 138"/>`;
+  s+=label(254,118,'はい / いいえ','lb b','start');
+  s+=label(170,148,'決めるのは人。AI は質問を整える','lb');
+  return svg(id,340,154,s,'1スキャンの空白が守るべき仕様かを人に質問し、人が決める');};
+S[6]=()=>{const id='s6';let s='';
+  const cols=[['状態',44],['出力',36],['遷移',40]],rows=[['前進','Y0','X2'],['クランプ','Y2','X4'],['後退','Y1','X3']];
+  s+=`<rect class="bx tool" x="12" y="22" width="120" height="82" rx="3"/>`;
+  let cx0=12;cols.forEach(([t,w])=>{s+=label(cx0+w/2,36,t,'lb');cx0+=w;});
+  s+=`<line class="ar thin" x1="12" y1="42" x2="132" y2="42"/>`;
+  rows.forEach((r,i)=>{let cx=12;r.forEach((t,j)=>{s+=`<text class="bt xs2" x="${cx+cols[j][1]/2}" y="${60+i*19}" text-anchor="middle">${t}</text>`;cx+=cols[j][1];});});
+  s+=label(72,120,'状態遷移表','lb');
+  s+=arrow(134,62,150,62,id);
+  s+=`<rect class="bx acc" x="152" y="14" width="88" height="100" rx="4"/>`;
+  ['CASE step OF','  〈状態〉:','    〈出力〉','    IF 〈条件〉','      step := ..','END_CASE'].forEach((t,i)=>{s+=`<text class="mono xs" x="158" y="${30+i*15}">${esc(t)}</text>`;});
+  s+=label(196,128,'固定の骨格','lb');
+  s+=arrow(242,62,256,62,id);
+  s+=`<rect class="bx tool" x="258" y="14" width="80" height="100" rx="4"/>`;
+  ['FWD:','  solFwd:=TRUE;','  IF lsFwd','  THEN step','    :=CLAMP;','END_IF'].forEach((t,i)=>{s+=`<text class="mono xs" x="263" y="${30+i*15}">${esc(t)}</text>`;});
+  s+=label(298,128,'ST','lb');
+  s+=label(170,148,'骨格が決まっているので、検図ルールを書ける','lb');
+  return svg(id,340,154,s,'状態遷移表を固定の骨格に流し込んで ST を生成する');};
+S[7]=()=>{const id='s7';let s='';
+  s+=label(84,14,'同じ入力','lb');s+=wave(45,20,[{name:'X2',bits:'0001111'}],7,11,22);
+  s+=box(135,16,55,30,'ラダー','tool');s+=box(135,62,55,30,'ST','acc');
+  s+=arrow(122,31,133,31,id);s+=arrow(122,33,133,75,id);
+  s+=wave(255,16,[{name:'Y0',bits:'1110000'}],7,11,22);s+=wave(255,62,[{name:'Y0',bits:'1100000'}],7,11,22,{marks:[{i:2}]});
+  s+=arrow(190,31,222,31,id);s+=arrow(190,77,222,77,id);
+  s+=label(300,110,'差分','lb warn');
+  s+=label(170,142,'ルール: 1スキャン差は許容、それ以外は不一致','lb');
+  return svg(id,340,150,s,'同じ入力波形をラダーと ST に流し、出力の差分を検出する');};
+
+document.querySelectorAll('.fig[data-fig]').forEach(f=>{const k=f.getAttribute('data-fig');if(F[k])f.insertAdjacentHTML('afterbegin',F[k]());});
+document.querySelectorAll('.sfig[data-sfig]').forEach(d=>{const k=+d.getAttribute('data-sfig');if(S[k])d.innerHTML=S[k]();});
+})();
+</script>
+</body>
+</html>
