@@ -148,6 +148,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
 .chip.human{background:var(--warn-soft);border-color:var(--warn);color:var(--warn)}
 .chip.c{font-family:var(--mono)}
 .step p{margin:6px 0;font-size:14.5px}
+.step p.lim{font-size:13px;color:var(--muted)}
 
 /* cards */
 .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}
@@ -297,7 +298,9 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
       <div>
         <h3><span class="n">2</span>静的解析</h3>
         <div class="chips"><span class="chip tool">アルゴリズム</span><span class="chip c">確からしさ: 高い</span></div>
-        <p>どの変数を誰が読み、誰が書くかのグラフを作る。自己保持、SET / RST の対、パルス、タイマ、比較接点といったパターンを検出する。決定的なアルゴリズムで、<strong>AI は不要</strong>。</p>
+        <p>全デバイスについて「誰が読み、誰が書くか」を一覧にし、自己保持、SET / RST の対、パルス、タイマ、比較接点の形に印を付ける。開発環境のクロスリファレンスを全デバイスに一括でかけたもの。構文から決まる事実なので決定的で、<strong>AI は不要</strong>。</p>
+        <p><strong>やる意味は3つ。</strong>①「誰がこの変数を書いているか」を全列挙できる唯一の手段で、散在した SET / RST を機構ごとに集める土台になる。②以降の全工程の入力になる。3 は鎖をここから探し、4 はここで束ね、7 は比べる信号の一覧をここから取る。③LLM に読ませる前に事実を固めておくことで、LLM の仕事を「事実の上で推定する」だけに絞れる。</p>
+        <p class="lim">限界: 間接指定（D0Z0）やワードとビットの重なり（K4M0）は参照先が静的に決まらず、「この範囲のどれか」までしか分からない。</p>
       </div>
     </article>
     <article class="step">
@@ -305,7 +308,9 @@ table.tbl{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
       <div>
         <h3><span class="n">3</span>状態機械の候補抽出</h3>
         <div class="chips"><span class="chip tool">グラフ解析 + 実機ログ</span><span class="chip llm">曖昧な組だけ LLM</span><span class="chip c">確からしさ: 候補は出る</span></div>
-        <p>排他的に ON になるビット群を探し、鎖状につながっていれば工程の候補とする。静的解析だけでは決まらないので、実機のデバイスログで「同時に ON にならない」ことを裏取りする。候補は出るが、確定はしない。</p>
+        <p>工程の鎖には形がある。<strong>ON 条件に前の工程のビットが入り、OFF 条件に次の工程のビットが入る。</strong>この受け渡しの形を 2 のグラフから探すと、教科書どおりの歩進回路なら鎖は機械的に見つかる。</p>
+        <p><strong>コードから読み取れないもの</strong>が残る。本当に排他なのか（切り替わりの1スキャンで重なる）、並列に動く2本の鎖が混ざっていないか、飛び越しや異常時の一括リセット、手動モードからの直接 SET が鎖を崩していないか、そして鎖のどこまでが1つの機構で各状態の名前は何か。ここは実機ログとコメント、人の判断で埋める。</p>
+        <p><strong>重要度は目標次第。</strong>「今どの工程か」を1変数にしたいなら、それを作る工程そのもので中心になる。機構ごとに FB に分けるだけなら不要。組み合わせ回路には最初からかけない。推定が最も入る工程なので、7 の検証はこの工程のためにある。</p>
       </div>
     </article>
     <article class="step">
